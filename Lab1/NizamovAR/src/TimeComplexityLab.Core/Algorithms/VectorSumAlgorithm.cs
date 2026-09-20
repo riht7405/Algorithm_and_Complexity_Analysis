@@ -1,6 +1,6 @@
 using TimeComplexityLab.Domain;
 
-namespace TimeComplexityLab.Core;
+namespace TimeComplexityLab.Core.Algorithms;
 
 public class VectorSumAlgorithm : IAlgorithm
 {
