@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TimeComplexityLab.Core/TimeComplexityLab.Core.csproj" />
+    <Project Path="src/TimeComplexityLab.Domain/TimeComplexityLab.Domain.csproj" />
+    <Project Path="src/TimeComplexityLab.Infrastructure/TimeComplexityLab.Infrastructure.csproj" />
+    <Project Path="src/TimeComplexityLab.Presentation.Wpf/TimeComplexityLab.Presentation.Wpf.csproj" />
+  </Folder>
+</Solution>
