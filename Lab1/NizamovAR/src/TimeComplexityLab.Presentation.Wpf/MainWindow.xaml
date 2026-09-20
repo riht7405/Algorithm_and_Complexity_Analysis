@@ -1,0 +1,76 @@
+﻿<Window x:Class="TimeComplexityLab.Presentation.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:scott="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+        Title="Лаборатория Временной Сложности v1.0"
+        Height="650" Width="1000"
+        Background="#F8F9FA">
+    <Grid Margin="15">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="15" Margin="0,0,15,0">
+            <StackPanel>
+                <TextBlock Text="Параметры эксперимента"
+                           FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+
+                <TextBlock Text="Алгоритм:" Margin="0,5,0,2"/>
+                <ComboBox x:Name="AlgoComboBox"
+                          DisplayMemberPath="DisplayName"
+                          Height="30" Margin="0,0,0,15"/>
+
+                <TextBlock Text="N Max:" Margin="0,5,0,2"/>
+                <TextBox x:Name="TxtNMax" Text="5000"
+                         Height="30" VerticalContentAlignment="Center" Margin="0,0,0,15"/>
+
+                <TextBlock Text="Шаг:" Margin="0,5,0,2"/>
+                <TextBox x:Name="TxtStep" Text="500"
+                         Height="30" VerticalContentAlignment="Center" Margin="0,0,0,15"/>
+
+                <TextBlock Text="Запусков на точку:" Margin="0,5,0,2"/>
+                <TextBox x:Name="TxtRuns" Text="5"
+                         Height="30" VerticalContentAlignment="Center" Margin="0,0,0,20"/>
+                <TextBlock Text="Гипотеза f(n):" Margin="0,5,0,2"/>
+                <ComboBox x:Name="HypothesisComboBox"
+          Height="30" Margin="0,0,0,15">
+                    <ComboBoxItem Content="O(n)" Tag="Linear" IsSelected="True"/>
+                    <ComboBoxItem Content="O(1)" Tag="Constant"/>
+                    <ComboBoxItem Content="O(log n)" Tag="Logarithmic"/>
+                    <ComboBoxItem Content="O(n log n)" Tag="NLogN"/>
+                    <ComboBoxItem Content="O(n²)" Tag="Quadratic"/>
+                    <ComboBoxItem Content="O(n³)" Tag="Cubic"/>
+                </ComboBox>
+
+                <TextBlock Text="Аппроксимация:" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                <TextBlock x:Name="ApproxInfoText"
+           Text="—"
+           TextWrapping="Wrap"
+           Foreground="#495057"
+           Margin="0,0,0,15"/>
+
+                <Button Content="▶ Запустить бенчмарк"
+                        Click="BtnStart_Click"
+                        Height="40" Background="#0D6EFD" Foreground="White"
+                        FontWeight="Bold" BorderThickness="0"/>
+
+                <Button Content="＋ Наложить на график"
+                        Click="BtnCompare_Click"
+                        Height="32" Margin="0,8,0,0"
+                        Background="#198754" Foreground="White"
+                        FontWeight="SemiBold" BorderThickness="0"/>
+
+                <Button Content="Очистить график"
+                        Click="BtnClear_Click"
+                        Height="28" Margin="0,8,0,0"
+                        Background="#6C757D" Foreground="White"
+                        BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Background="White" CornerRadius="8" Padding="10">
+            <scott:WpfPlot x:Name="MainPlot"/>
+        </Border>
+    </Grid>
+</Window>
