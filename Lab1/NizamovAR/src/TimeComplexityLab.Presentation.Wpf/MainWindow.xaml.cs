@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using TimeComplexityLab.Core;
+using TimeComplexityLab.Core.Algorithms;
 using TimeComplexityLab.Core.Approximation;
 using TimeComplexityLab.Domain;
 using TimeComplexityLab.Infrastructure;
@@ -13,60 +14,71 @@ public partial class MainWindow : Window
     private readonly ApproximationService _approximationService = new();
     private readonly List<IAlgorithm> _algorithms = new();
 
+    // Палитра для эмпирик. Цвет аппроксимации всегда оранжевый.
+    private static readonly ScottPlot.Color[] Palette = new[]
+    {
+        ScottPlot.Color.FromHex("#0D6EFD"), // синий
+        ScottPlot.Color.FromHex("#198754"), // зелёный
+        ScottPlot.Color.FromHex("#DC3545"), // красный
+        ScottPlot.Color.FromHex("#6F42C1"), // фиолетовый
+        ScottPlot.Color.FromHex("#20C997"), // бирюзовый
+        ScottPlot.Color.FromHex("#D63384"), // розовый
+        ScottPlot.Color.FromHex("#6C757D"), // серый
+        ScottPlot.Color.FromHex("#0DCAF0"), // циан
+    };
+
+    private static readonly ScottPlot.Color ApproximationColor =
+        ScottPlot.Color.FromHex("#FD7E14"); // оранжевый
+
     public MainWindow()
     {
         InitializeComponent();
 
-        // Сборка зависимостей — здесь, в Presentation.
-        // Application не знает про Infrastructure, Infrastructure реализует
-        // интерфейс Application, Presentation соединяет их вместе.
         var repository = new SqliteExperimentRepository();
         _orchestrator = new ExperimentOrchestrator(repository);
 
-        // Регистрация алгоритмов.
-        // Позже это заменим на DI-контейнер или реестр.
+        // Регистрация алгоритмов. Порядок определяет цвет эмпирики.
+        _algorithms.Add(new ConstantFunctionAlgorithm());
         _algorithms.Add(new VectorSumAlgorithm());
+        _algorithms.Add(new VectorProductAlgorithm());
+        _algorithms.Add(new PolynomialNaiveAlgorithm());
+        _algorithms.Add(new PolynomialHornerAlgorithm());
+        _algorithms.Add(new BubbleSortAlgorithm());
+        _algorithms.Add(new QuickSortAlgorithm());
+        _algorithms.Add(new TimsortAlgorithm());
 
         AlgoComboBox.ItemsSource = _algorithms;
         AlgoComboBox.SelectedIndex = 0;
 
-        // Настройка внешнего вида графика
         MainPlot.Plot.XLabel("Размер входных данных (N)");
         MainPlot.Plot.YLabel("Время выполнения (мс)");
         MainPlot.Plot.ShowLegend();
     }
 
-    /// <summary>
-    /// Кнопка «Запустить бенчмарк». Очищает график и строит одну кривую.
-    /// </summary>
+    private ScottPlot.Color GetColorForAlgorithm(IAlgorithm algo)
+    {
+        int index = _algorithms.IndexOf(algo);
+        if (index < 0) index = 0;
+        return Palette[index % Palette.Length];
+    }
+
     private async void BtnStart_Click(object sender, RoutedEventArgs e)
     {
         MainPlot.Plot.Clear();
         await RunAndPlotAsync();
     }
 
-    /// <summary>
-    /// Кнопка «Наложить на график». НЕ очищает график —
-    /// новая кривая добавляется поверх существующих.
-    /// </summary>
     private async void BtnCompare_Click(object sender, RoutedEventArgs e)
     {
         await RunAndPlotAsync();
     }
 
-    /// <summary>
-    /// Кнопка «Очистить график». Убирает все кривые.
-    /// </summary>
     private void BtnClear_Click(object sender, RoutedEventArgs e)
     {
         MainPlot.Plot.Clear();
         MainPlot.Refresh();
     }
 
-    /// <summary>
-    /// Общая логика: валидация параметров → запуск эксперимента →
-    /// группировка по N → отрисовка на графике.
-    /// </summary>
     private async Task RunAndPlotAsync()
     {
         if (AlgoComboBox.SelectedItem is not IAlgorithm algo)
@@ -84,10 +96,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Определяем гипотезу f(n)
-        var selectedItem = (ComboBoxItem)HypothesisComboBox.SelectedItem;
-        var hypothesis = (ComplexityFunction)Enum.Parse(
-            typeof(ComplexityFunction), (string)selectedItem.Tag);
+        if (HypothesisComboBox.SelectedItem is not ComboBoxItem hypItem ||
+            hypItem.Tag is not string hypTag ||
+            !Enum.TryParse<ComplexityFunction>(hypTag, out var hypothesis))
+        {
+            MessageBox.Show("Выбери гипотезу f(n).");
+            return;
+        }
 
         IsEnabled = false;
         try
@@ -104,13 +119,15 @@ public partial class MainWindow : Window
             double[] xs = points.Select(p => (double)p.N).ToArray();
             double[] ys = points.Select(p => p.Avg).ToArray();
 
-            // Эмпирическая кривая
+            var color = GetColorForAlgorithm(algo);
+
+            // Эмпирика — цвет алгоритма, сплошная
             var scatter = MainPlot.Plot.Add.Scatter(xs, ys);
             scatter.LegendText = $"{algo.DisplayName} (эмпирика)";
             scatter.MarkerSize = 5;
-            scatter.Color = ScottPlot.Color.FromHex("#0D6EFD");
+            scatter.Color = color;
 
-            // Аппроксимация
+            // Аппроксимация — всегда оранжевая, пунктирная
             var pointTuples = points
                 .Select(p => (N: p.N, T: p.Avg))
                 .ToList();
@@ -125,7 +142,7 @@ public partial class MainWindow : Window
             line.LegendText = $"Аппроксимация {hypothesis.ToDisplayString()}";
             line.MarkerSize = 0;
             line.LineWidth = 2;
-            line.Color = ScottPlot.Color.FromHex("#FD7E14");
+            line.Color = ApproximationColor;
 
             // Вывод C и MSE в панель
             ApproxInfoText.Text =
@@ -139,7 +156,11 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка: {ex.Message}\n\n{ex.StackTrace}");
+            MessageBox.Show(
+                $"Ошибка эксперимента:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                "Ошибка",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {
