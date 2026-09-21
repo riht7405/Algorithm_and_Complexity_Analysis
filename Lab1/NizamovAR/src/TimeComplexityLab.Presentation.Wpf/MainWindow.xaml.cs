@@ -46,6 +46,8 @@ public partial class MainWindow : Window
         _algorithms.Add(new BubbleSortAlgorithm());
         _algorithms.Add(new QuickSortAlgorithm());
         _algorithms.Add(new TimsortAlgorithm());
+        _algorithms.Add(new GnomeSortAlgorithm());
+        _algorithms.Add(new HirschbergAlgorithm());
 
         AlgoComboBox.ItemsSource = _algorithms;
         AlgoComboBox.SelectedIndex = 0;
