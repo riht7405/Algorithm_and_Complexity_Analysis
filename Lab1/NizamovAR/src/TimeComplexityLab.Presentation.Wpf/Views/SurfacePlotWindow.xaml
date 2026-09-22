@@ -1,0 +1,42 @@
+<Window x:Class="TimeComplexityLab.Presentation.Wpf.Views.SurfacePlotWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:h="http://helix-toolkit.org/wpf"
+        Title="3D-поверхность"
+        Height="750" Width="1150"
+        Background="#F0F2F5"
+        WindowStartupLocation="CenterOwner">
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+
+		<h:HelixViewport3D x:Name="Viewport"
+                           Grid.Row="0"
+                           ShowCoordinateSystem="True"
+                           ShowViewCube="True"
+                           Background="#F0F2F5"
+                           ZoomExtentsWhenLoaded="False"
+                           IsHeadLightEnabled="False">
+			<!-- Явные источники света -->
+			<h:SunLight Brightness="0.8" Altitude="60" Azimuth="45"/>
+			<h:SunLight Brightness="0.4" Altitude="30" Azimuth="-135"/>
+			<h:SunLight Brightness="0.3" Altitude="80" Azimuth="180"/>
+
+			<!-- Ambient свет через ModelVisual3D -->
+			<ModelVisual3D>
+				<ModelVisual3D.Content>
+					<AmbientLight Color="#404040"/>
+				</ModelVisual3D.Content>
+			</ModelVisual3D>
+		</h:HelixViewport3D>
+
+		<Border Grid.Row="1" Background="#E4E6EA" Padding="12">
+			<TextBlock x:Name="InfoText"
+                       Foreground="#1A1A1A"
+                       FontFamily="Consolas"
+                       FontSize="13"/>
+		</Border>
+	</Grid>
+</Window>

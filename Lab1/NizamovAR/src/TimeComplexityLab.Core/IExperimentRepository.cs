@@ -8,4 +8,9 @@ public interface IExperimentRepository
     Task SaveSessionAsync(ExperimentSession session);
     Task<List<Measurement>> GetCachedMeasurementsAsync(string algorithmId, int n, int m, int runsCount);
     Task SaveMeasurementsAsync(IEnumerable<Measurement> measurements);
+
+    // НОВЫЕ методы для вкладки «История»
+    Task<List<ExperimentSession>> GetAllSessionsAsync();
+    Task<List<Measurement>> GetMeasurementsBySessionsAsync(IReadOnlyCollection<Guid> sessionIds);
+    Task DeleteSessionAsync(Guid sessionId);
 }

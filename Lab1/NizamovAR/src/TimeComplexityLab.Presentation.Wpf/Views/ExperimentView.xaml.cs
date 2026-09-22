@@ -1,0 +1,303 @@
+﻿using System.Windows;
+using System.Windows.Controls;
+using TimeComplexityLab.Core;
+using TimeComplexityLab.Core.Algorithms;
+using TimeComplexityLab.Core.Approximation;
+using TimeComplexityLab.Domain;
+using TimeComplexityLab.Infrastructure;
+using TimeComplexityLab.Presentation.Wpf.Services;
+
+namespace TimeComplexityLab.Presentation.Wpf.Views;
+
+public partial class ExperimentView : UserControl
+{
+    private readonly ExperimentOrchestrator _orchestrator;
+    private readonly ApproximationService _approximationService = new();
+    private readonly List<IAlgorithm> _algorithms = new();
+    private ExperimentSession? _lastSession;
+
+    private static readonly ScottPlot.Color[] Palette = new[]
+    {
+        ScottPlot.Color.FromHex("#0D6EFD"),
+        ScottPlot.Color.FromHex("#198754"),
+        ScottPlot.Color.FromHex("#DC3545"),
+        ScottPlot.Color.FromHex("#6F42C1"),
+        ScottPlot.Color.FromHex("#20C997"),
+        ScottPlot.Color.FromHex("#D63384"),
+        ScottPlot.Color.FromHex("#6C757D"),
+        ScottPlot.Color.FromHex("#0DCAF0"),
+    };
+
+    private static readonly ScottPlot.Color ApproximationColor =
+        ScottPlot.Color.FromHex("#FD7E14");
+
+    public ExperimentView()
+    {
+        InitializeComponent();
+
+        var repository = new SqliteExperimentRepository();
+        _orchestrator = new ExperimentOrchestrator(repository);
+
+        foreach (var algo in AlgorithmRegistry.CreateAll())
+            _algorithms.Add(algo);
+
+        AlgoComboBox.ItemsSource = _algorithms;
+        AlgoComboBox.SelectedIndex = 0;
+
+        MainPlot.Plot.XLabel("Размер входных данных (N)");
+        MainPlot.Plot.YLabel("Время выполнения (мс)");
+        MainPlot.Plot.ShowLegend();
+
+        // Принудительно применить defaults первого алгоритма
+        AlgoComboBox_SelectionChanged(AlgoComboBox, null!);
+    }
+
+    private void AlgoComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (AlgoComboBox.SelectedItem is not IAlgorithm algo) return;
+
+        var d = algo.Defaults;
+
+        TxtNMax.Text = d.NMax.ToString();
+        TxtStep.Text = d.NStep.ToString();
+        TxtRuns.Text = d.RunsPerPoint.ToString();
+
+        if (algo.Dimension == ExperimentDimension.TwoDimensional)
+        {
+            TwoDimPanel.Visibility = Visibility.Visible;
+            TxtMMax.Text = d.MMax.ToString();
+            TxtMStep.Text = d.MStep.ToString();
+        }
+        else
+        {
+            TwoDimPanel.Visibility = Visibility.Collapsed;
+        }
+
+        // Устанавливаем гипотезу
+        foreach (ComboBoxItem item in HypothesisComboBox.Items)
+        {
+            if (item.Tag is string tag && tag == d.Hypothesis)
+            {
+                HypothesisComboBox.SelectedItem = item;
+                break;
+            }
+        }
+
+        MainPlot.Plot.YLabel(algo.MeasureUnit == MeasureUnit.Steps
+            ? "Количество шагов"
+            : "Время выполнения (мс)");
+        MainPlot.Refresh();
+
+        ApproxInfoText.Text = "—";
+    }
+
+    private ScottPlot.Color GetColorForAlgorithm(IAlgorithm algo)
+    {
+        int index = _algorithms.IndexOf(algo);
+        if (index < 0) index = 0;
+        return Palette[index % Palette.Length];
+    }
+
+    private async void BtnStart_Click(object sender, RoutedEventArgs e)
+    {
+        MainPlot.Plot.Clear();
+        await RunAndPlotAsync();
+    }
+
+    private async void BtnCompare_Click(object sender, RoutedEventArgs e)
+    {
+        await RunAndPlotAsync();
+    }
+
+    private void BtnClear_Click(object sender, RoutedEventArgs e)
+    {
+        MainPlot.Plot.Clear();
+        MainPlot.Refresh();
+    }
+
+    private async Task RunAndPlotAsync()
+    {
+        if (AlgoComboBox.SelectedItem is not IAlgorithm algo)
+        {
+            MessageBox.Show("Выбери алгоритм.");
+            return;
+        }
+
+        if (!int.TryParse(TxtNMax.Text, out int nMax) ||
+            !int.TryParse(TxtStep.Text, out int nStep) ||
+            !int.TryParse(TxtRuns.Text, out int runs) ||
+            nMax <= 0 || nStep <= 0 || runs <= 0)
+        {
+            MessageBox.Show("Проверь параметры: N Max, шаг N и запуски.");
+            return;
+        }
+
+        int mMax = 0, mStep = 0;
+        if (algo.Dimension == ExperimentDimension.TwoDimensional)
+        {
+            if (!int.TryParse(TxtMMax.Text, out mMax) ||
+                !int.TryParse(TxtMStep.Text, out mStep) ||
+                mMax <= 0 || mStep <= 0)
+            {
+                MessageBox.Show("Проверь параметры: M Max и шаг M.");
+                return;
+            }
+        }
+
+        if (HypothesisComboBox.SelectedItem is not ComboBoxItem hypItem ||
+            hypItem.Tag is not string hypTag ||
+            !Enum.TryParse<ComplexityFunction>(hypTag, out var hypothesis))
+        {
+            MessageBox.Show("Выбери гипотезу f(n).");
+            return;
+        }
+
+        bool forceRecalc = ChkForceRecalc.IsChecked == true;
+
+        IsEnabled = false;
+        try
+        {
+            var session = await _orchestrator.RunExperimentAsync(
+                algo, nMax, nStep, mMax, mStep, runs, forceRecalc);
+
+            _lastSession = session;
+
+            // Сохраняем в общий стор для вкладки «3D»
+            SessionStore.SetFromExperiment(session, algo);
+
+            if (algo.MeasureUnit == MeasureUnit.Steps)
+            {
+                PlotSteps(session, algo);
+                ApproxInfoText.Text = "Режим подсчёта шагов.\nАппроксимация не применяется.";
+            }
+            else
+            {
+                PlotTime(session, algo, hypothesis);
+            }
+
+            MainPlot.Plot.Axes.AutoScale();
+            MainPlot.Refresh();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Ошибка эксперимента:\n\n{ex.Message}\n\n{ex.StackTrace}",
+                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsEnabled = true;
+        }
+    }
+
+    private void PlotTime(ExperimentSession session, IAlgorithm algo, ComplexityFunction hypothesis)
+    {
+        if (algo.Dimension == ExperimentDimension.OneDimensional)
+        {
+            var points = session.Measurements
+                .GroupBy(m => m.N)
+                .Select(g => new { N = g.Key, Avg = g.Average(m => m.ElapsedMilliseconds) })
+                .OrderBy(p => p.N)
+                .ToList();
+
+            double[] xs = points.Select(p => (double)p.N).ToArray();
+            double[] ys = points.Select(p => p.Avg).ToArray();
+
+            var color = GetColorForAlgorithm(algo);
+            var scatter = MainPlot.Plot.Add.Scatter(xs, ys);
+            scatter.LegendText = $"{algo.DisplayName} (эмпирика)";
+            scatter.MarkerSize = 5;
+            scatter.Color = color;
+
+            var tuples = points.Select(p => (N: p.N, T: p.Avg)).ToList();
+            var approx = _approximationService.Fit(tuples, hypothesis);
+            var curve = _approximationService.BuildCurve(
+                points.Select(p => p.N).ToList(), approx);
+
+            double[] cx = curve.Select(c => (double)c.N).ToArray();
+            double[] cy = curve.Select(c => c.T).ToArray();
+
+            var line = MainPlot.Plot.Add.Scatter(cx, cy);
+            line.LegendText = $"Аппроксимация {hypothesis.ToDisplayString()}";
+            line.MarkerSize = 0;
+            line.LineWidth = 2;
+            line.Color = ApproximationColor;
+
+            ApproxInfoText.Text =
+                $"f(n) = {hypothesis.ToDisplayString()}\n" +
+                $"C = {approx.C:E3}\n" +
+                $"MSE = {approx.MSE:E3}\n" +
+                $"Точек: {approx.PointsCount}";
+        }
+        else
+        {
+            // 2D: серия кривых, по одной на m
+            var groups = session.Measurements
+                .GroupBy(m => m.M)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            foreach (var group in groups)
+            {
+                var points = group
+                    .GroupBy(m => m.N)
+                    .Select(g => new { N = g.Key, Avg = g.Average(m => m.ElapsedMilliseconds) })
+                    .OrderBy(p => p.N)
+                    .ToList();
+
+                double[] xs = points.Select(p => (double)p.N).ToArray();
+                double[] ys = points.Select(p => p.Avg).ToArray();
+
+                var scatter = MainPlot.Plot.Add.Scatter(xs, ys);
+                scatter.LegendText = $"{algo.DisplayName} m={group.Key}";
+                scatter.MarkerSize = 4;
+            }
+
+            ApproxInfoText.Text = $"2D эксперимент: {groups.Count} кривых (по m)";
+        }
+    }
+
+    private void PlotSteps(ExperimentSession session, IAlgorithm algo)
+    {
+        if (algo.Dimension == ExperimentDimension.OneDimensional)
+        {
+            var points = session.Measurements
+                .GroupBy(m => m.N)
+                .Select(g => new { N = g.Key, Avg = g.Average(m => (double)m.Steps) })
+                .OrderBy(p => p.N)
+                .ToList();
+
+            double[] xs = points.Select(p => (double)p.N).ToArray();
+            double[] ys = points.Select(p => p.Avg).ToArray();
+
+            var color = GetColorForAlgorithm(algo);
+            var scatter = MainPlot.Plot.Add.Scatter(xs, ys);
+            scatter.LegendText = $"{algo.DisplayName} (шаги)";
+            scatter.MarkerSize = 5;
+            scatter.Color = color;
+        }
+        else
+        {
+            var groups = session.Measurements
+                .GroupBy(m => m.M)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            foreach (var group in groups)
+            {
+                var points = group
+                    .GroupBy(m => m.N)
+                    .Select(g => new { N = g.Key, Avg = g.Average(m => (double)m.Steps) })
+                    .OrderBy(p => p.N)
+                    .ToList();
+
+                double[] xs = points.Select(p => (double)p.N).ToArray();
+                double[] ys = points.Select(p => p.Avg).ToArray();
+
+                var scatter = MainPlot.Plot.Add.Scatter(xs, ys);
+                scatter.LegendText = $"{algo.DisplayName} m={group.Key}";
+                scatter.MarkerSize = 4;
+            }
+        }
+    }
+}

@@ -1,0 +1,80 @@
+<UserControl x:Class="TimeComplexityLab.Presentation.Wpf.Views.SurfaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="3D-визуализация поверхности"
+                   FontSize="22" FontWeight="Bold"
+                   Foreground="{StaticResource TextPrimaryBrush}"
+                   Margin="0,0,0,12"/>
+
+        <Border Grid.Row="1"
+                Style="{StaticResource CardBorder}"
+                Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnBuild3D"
+                        Content="🌐 Построить 3D-поверхность"
+                        Style="{StaticResource AccentButton}"
+                        Height="42" Width="280"
+                        Click="BtnBuild3D_Click"/>
+
+                <TextBlock x:Name="StatusText"
+                           VerticalAlignment="Center"
+                           Margin="20,0,0,0"
+                           FontSize="14"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Text="Сначала запусти 2D-эксперимент на вкладке «Эксперимент» или выбери сессию в «Истории»."/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="2"
+                Style="{StaticResource CardBorder}"
+                Padding="30">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="ℹ Как пользоваться 3D-поверхностью"
+                           FontSize="18" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,20"/>
+
+                <TextBlock FontSize="14"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           MaxWidth="640"
+                           LineHeight="22">
+                    <Run Text="1. Перейди на вкладку «Эксперимент»."/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="2. Выбери 2D-алгоритм: Умножение матриц, DTW или Хиршберг."/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="3. Задай параметры N Max и M Max. Рекомендуется 200–300 с шагом 20–25."/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="4. Нажми «Запустить бенчмарк» и дождись окончания."/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="5. Вернись на эту вкладку и нажми «Построить 3D-поверхность»."/>
+                    <LineBreak/><LineBreak/>
+                    <Run Text="6. Или открой вкладку «История», выбери 2D-сессию и нажми «Показать в 3D»."/>
+                </TextBlock>
+
+                <TextBlock Text="Управление мышью в 3D-окне:"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center"
+                           Margin="0,30,0,10"/>
+
+                <TextBlock FontSize="13"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center">
+                    <Run Text="ЛКМ — вращение    •    ПКМ — панорама    •    Колесо — зум"/>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

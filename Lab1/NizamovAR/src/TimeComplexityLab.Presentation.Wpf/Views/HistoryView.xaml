@@ -1,0 +1,95 @@
+<UserControl x:Class="TimeComplexityLab.Presentation.Wpf.Views.HistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:scott="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+             Loaded="OnLoaded">
+    <Grid Margin="15">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="440"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Левая панель: список сессий -->
+        <Border Grid.Column="0"
+                Style="{StaticResource CardBorder}"
+                Margin="0,0,15,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="История экспериментов"
+                           FontSize="18" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           Margin="0,0,0,10"/>
+
+                <TextBlock Grid.Row="1"
+                           Text="Ctrl+клик — выбрать несколько сессий для сравнения"
+                           FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Margin="0,0,0,10"/>
+
+                <DataGrid x:Name="SessionsGrid"
+                          Grid.Row="2"
+                          Style="{StaticResource ModernDataGrid}"
+                          SelectionMode="Extended">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Дата"
+                                            Binding="{Binding StartedAtUtc, StringFormat='dd.MM HH:mm'}"
+                                            Width="80"/>
+                        <DataGridTextColumn Header="Алгоритм"
+                                            Binding="{Binding DisplayName}"
+                                            Width="*"/>
+                        <DataGridTextColumn Header="N max"
+                                            Binding="{Binding NMax}"
+                                            Width="55"/>
+                        <DataGridTextColumn Header="M max"
+                                            Binding="{Binding MMax}"
+                                            Width="55"/>
+                        <DataGridTextColumn Header="Точек"
+                                            Binding="{Binding PointCount}"
+                                            Width="55"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <StackPanel Grid.Row="3"
+                            Orientation="Vertical"
+                            Margin="0,12,0,0">
+                    <Button Content="📈 Построить график для выбранных"
+                            Style="{StaticResource PrimaryButton}"
+                            Height="38"
+                            Margin="0,0,0,8"
+                            Click="BtnPlotSelected_Click"/>
+
+                    <Button Content="🔺 Показать в 3D"
+                            Style="{StaticResource AccentButton}"
+                            Height="34"
+                            Margin="0,0,0,8"
+                            Click="BtnShow3D_Click"/>
+
+                    <Button Content="🗑 Удалить выбранную"
+                            Style="{StaticResource DangerButton}"
+                            Height="32"
+                            Margin="0,0,0,8"
+                            Click="BtnDelete_Click"/>
+
+                    <Button Content="🔄 Обновить список"
+                            Style="{StaticResource SecondaryButton}"
+                            Height="32"
+                            Click="BtnRefresh_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Правая панель: график -->
+        <Border Grid.Column="1"
+                Style="{StaticResource CardBorder}"
+                Padding="10">
+            <scott:WpfPlot x:Name="HistoryPlot"/>
+        </Border>
+    </Grid>
+</UserControl>

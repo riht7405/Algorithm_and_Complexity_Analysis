@@ -1,0 +1,585 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>HelixToolkit</name>
+    </assembly>
+    <members>
+        <member name="T:HelixToolkit.DoubleKeyDictionary`3">
+            <summary>
+            A double key dictionary.
+            </summary>
+            <typeparam name="K">
+            The first key type.
+            </typeparam>
+            <typeparam name="T">
+            The second key type.
+            </typeparam>
+            <typeparam name="V">
+            The value type.
+            </typeparam>
+            <remarks>
+            See http://noocyte.wordpress.com/2008/02/18/double-key-dictionary/
+            A Remove method was added.
+            </remarks>
+        </member>
+        <member name="P:HelixToolkit.DoubleKeyDictionary`3.OuterDictionary">
+            <summary>
+            Gets or sets OuterDictionary.
+            </summary>
+        </member>
+        <member name="P:HelixToolkit.DoubleKeyDictionary`3.Item(`0,`1)">
+            <summary>
+            Gets or sets the value with the specified indices.
+            </summary>
+            <value></value>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.Clear">
+            <summary>
+            Clears this dictionary.
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.Add(`0,`1,`2)">
+            <summary>
+            Adds the specified key.
+            </summary>
+            <param name="key1">
+            The key1.
+            </param>
+            <param name="key2">
+            The key2.
+            </param>
+            <param name="value">
+            The value.
+            </param>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.ContainsKey(`0,`1)">
+            <summary>
+            Determines whether the specified dictionary contains the key.
+            </summary>
+            <param name="index1">
+            The index1.
+            </param>
+            <param name="index2">
+            The index2.
+            </param>
+            <returns>
+            <c>true</c> if the specified index1 contains key; otherwise, <c>false</c>.
+            </returns>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.Equals(System.Object)">
+            <inheritdoc />
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.Equals(HelixToolkit.DoubleKeyDictionary{`0,`1,`2})">
+            <summary>
+            Equalses the specified other.
+            </summary>
+            <param name="other">
+            The other.
+            </param>
+            <returns>
+            The equals.
+            </returns>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.GetEnumerator">
+            <summary>
+            Gets the enumerator.
+            </summary>
+            <returns>
+            </returns>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.Remove(`0,`1)">
+            <summary>
+            Removes the specified key.
+            </summary>
+            <param name="key1">
+            The key1.
+            </param>
+            <param name="key2">
+            The key2.
+            </param>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.System#Collections#IEnumerable#GetEnumerator">
+            <summary>
+            Returns an enumerator that iterates through a collection.
+            </summary>
+            <returns>
+            An <see cref="T:System.Collections.IEnumerator"/> object that can be used to iterate through the collection.
+            </returns>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyDictionary`3.TryGetValue(`0,`1,`2@)">
+            <summary>
+            
+            </summary>
+            <param name="key1"></param>
+            <param name="key2"></param>
+            <param name="obj"></param>
+            <returns></returns>
+        </member>
+        <member name="P:HelixToolkit.DoubleKeyDictionary`3.Values">
+            <summary>
+            Gets the values.
+            </summary>
+            <value>
+            The values.
+            </value>
+        </member>
+        <member name="T:HelixToolkit.DoubleKeyPairValue`3">
+            <summary>
+            Represents two keys and a value.
+            </summary>
+            <typeparam name="K">
+            First key type.
+            </typeparam>
+            <typeparam name="T">
+            Second key type.
+            </typeparam>
+            <typeparam name="V">
+            Value type.
+            </typeparam>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyPairValue`3.#ctor(`0,`1,`2)">
+            <summary>
+            Initializes a new instance of the <see cref="T:HelixToolkit.DoubleKeyPairValue`3"/> class.
+            </summary>
+            <param name="key1">
+            The key1.
+            </param>
+            <param name="key2">
+            The key2.
+            </param>
+            <param name="value">
+            The value.
+            </param>
+        </member>
+        <member name="P:HelixToolkit.DoubleKeyPairValue`3.Key1">
+            <summary>
+            Gets or sets the key1.
+            </summary>
+            <value>The key1.</value>
+        </member>
+        <member name="P:HelixToolkit.DoubleKeyPairValue`3.Key2">
+            <summary>
+            Gets or sets the key2.
+            </summary>
+            <value>The key2.</value>
+        </member>
+        <member name="P:HelixToolkit.DoubleKeyPairValue`3.Value">
+            <summary>
+            Gets or sets the value.
+            </summary>
+            <value>The value.</value>
+        </member>
+        <member name="M:HelixToolkit.DoubleKeyPairValue`3.ToString">
+            <summary>
+            Returns a <see cref="T:System.String"/> that represents this instance.
+            </summary>
+            <returns>
+            A <see cref="T:System.String"/> that represents this instance.
+            </returns>
+        </member>
+        <member name="T:HelixToolkit.FastList`1">
+            <summary>
+            Similar to <see cref="T:System.Collections.Generic.List`1"/>, with direct access to underlying array.
+            </summary>
+            <typeparam name="T">The type of elements in the list.</typeparam>
+        </member>
+        <member name="P:HelixToolkit.FastList`1.Items">
+            <summary>
+            Gets the items from internal array. Make sure to access this array using <see cref="P:HelixToolkit.FastList`1.Count"/> instead of Array Length
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.FastList`1.Clear(System.Boolean)">
+            <summary>
+            Clears this list with a fast-clear option.
+            </summary>
+            <param name="fastClear">if set to <c>true</c> this method only resets the count elements but doesn't clear items referenced already stored in the list.</param>
+        </member>
+        <member name="M:HelixToolkit.FastList`1.AddAll(HelixToolkit.FastList{`0})">
+            <summary>
+            Fast add all from another <see cref="T:HelixToolkit.FastList`1"/>.
+            </summary>
+            <param name="list">The list.</param>
+        </member>
+        <member name="M:HelixToolkit.FastList`1.GetInternalArray">
+            <summary>
+            Gets the internal array used to hold data.
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.FastList`1.Swap(HelixToolkit.FastList{`0})">
+            <summary>
+            Swap two fast list contents
+            </summary>
+            <param name="collection"></param>
+        </member>
+        <member name="T:HelixToolkit.HelixToolkitException">
+            <summary>
+            Represents errors that occurs in the Helix 3D Toolkit.
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.HelixToolkitException.#ctor(System.String,System.Object[])">
+            <summary>
+            Initializes a new instance of the <see cref="T:HelixToolkit.HelixToolkitException"/> class.
+            </summary>
+            <param name="formatString">
+            The format string.
+            </param>
+            <param name="args">
+            The args.
+            </param>
+        </member>
+        <member name="T:HelixToolkit.Logger.DebugLogger">
+            <summary>
+            A logger that writes messages in the debug output window only when a debugger is attached.
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.Logger.DebugLogger.#ctor(System.String)">
+            <summary>
+            Initializes a new instance of the <see cref="T:HelixToolkit.Logger.DebugLogger"/> class.
+            </summary>
+            <param name="name">The name of the logger.</param>
+        </member>
+        <member name="M:HelixToolkit.Logger.DebugLogger.BeginScope``1(``0)">
+            <inheritdoc />
+        </member>
+        <member name="M:HelixToolkit.Logger.DebugLogger.IsEnabled(Microsoft.Extensions.Logging.LogLevel)">
+            <inheritdoc />
+        </member>
+        <member name="M:HelixToolkit.Logger.DebugLogger.Log``1(Microsoft.Extensions.Logging.LogLevel,Microsoft.Extensions.Logging.EventId,``0,System.Exception,System.Func{``0,System.Exception,System.String})">
+            <inheritdoc />
+        </member>
+        <member name="T:HelixToolkit.Logger.LogManager">
+            <summary>
+            
+            </summary>
+        </member>
+        <member name="P:HelixToolkit.Logger.LogManager.Factory">
+            <summary>
+            Replace factory at app start up to use custom logger.
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.Logger.LogManager.Create``1">
+            <summary>
+            
+            </summary>
+            <typeparam name="T"></typeparam>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.Logger.LogManager.Create(System.String)">
+            <summary>
+            
+            </summary>
+            <param name="categoryName"></param>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.SizeOf``1">
+            <summary>
+            SizeOf an unmanaged struct
+            </summary>
+            <typeparam name="T"></typeparam>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.SizeOf``1(``0[])">
+            <summary>
+            SizeOf array of unmanaged struct by bytes
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="array"></param>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.SizeOf``1(``0@)">
+            <summary>
+            SizeOf an unmanaged struct
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="_"></param>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.MemoryCopy(System.IntPtr,System.IntPtr,System.UInt32)">
+            <summary>
+            Unsafe memory copy
+            </summary>
+            <param name="dst"></param>
+            <param name="src"></param>
+            <param name="sizeInBytes"></param>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.ClearMemory(System.IntPtr,System.Byte,System.UInt32)">
+            <summary>
+            Clears the memory.
+            </summary>
+            <param name="dest">The dest.</param>
+            <param name="value">The value.</param>
+            <param name="sizeInBytesToClear">The size in bytes to clear.</param>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.ReadAndPosition``1(System.IntPtr,``0@)">
+            <summary>
+            Reads the specified T data from a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to read.</typeparam>
+            <param name="source">Memory location to read from.</param>
+            <param name="data">The data write to.</param>
+            <returns>source pointer + sizeof(T).</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Swap``1(``0@,``0@)">
+            <summary>
+            Swaps the value between two references.
+            </summary>
+            <typeparam name="T">Type of a data to swap.</typeparam>
+            <param name="left">The left value.</param>
+            <param name="right">The right value.</param>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Read``1(System.IntPtr)">
+            <summary>
+            Reads the specified T data from a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to read.</typeparam>
+            <param name="source">Memory location to read from.</param>
+            <returns>The data read from the memory location.</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Read``1(System.IntPtr,``0@)">
+            <summary>
+            Reads the specified T data from a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to read.</typeparam>
+            <param name="source">Memory location to read from.</param>
+            <param name="data">The data write to.</param>
+            <returns>source pointer + sizeof(T).</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.ReadOut``1(System.IntPtr,``0@)">
+            <summary>
+            Reads the specified T data from a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to read.</typeparam>
+            <param name="source">Memory location to read from.</param>
+            <param name="data">The data write to.</param>
+            <returns>source pointer + sizeof(T).</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Read``1(System.IntPtr,``0[],System.UInt32,System.UInt32)">
+            <summary>
+            Reads the specified array T[] data from a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to read.</typeparam>
+            <param name="source">Memory location to read from.</param>
+            <param name="data">The data write to.</param>
+            <param name="offset">The offset in the array to write to.</param>
+            <param name="count">The number of T element to read from the memory location.</param>
+            <returns>source pointer + sizeof(T) * count.</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.ReadStream(System.IO.Stream)">
+            <summary>
+            Read stream to a byte[] buffer.
+            </summary>
+            <param name="stream">Input stream.</param>
+            <returns>A byte[] buffer.</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.ReadStream(System.IO.Stream,System.Int32@)">
+            <summary>
+            Read stream to a byte[] buffer.
+            </summary>
+            <param name="stream">Input stream.</param>
+            <param name="readLength">Length to read.</param>
+            <returns>A byte[] buffer.</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Write``1(System.IntPtr,``0)">
+            <summary>
+            Writes the specified T data to a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to write.</typeparam>
+            <param name="destination">Memory location to write to.</param>
+            <param name="data">The data to write.</param>
+            <returns>destination pointer + sizeof(T).</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Write``1(System.IntPtr,``0@)">
+            <summary>
+            Writes the specified T data to a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to write.</typeparam>
+            <param name="destination">Memory location to write to.</param>
+            <param name="data">The data to write.</param>
+            <returns>destination pointer + sizeof(T).</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Write``1(System.IntPtr,System.Int32,``0@)">
+            <summary>
+            Writes the specified T data to a memory location with offset
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="destination"></param>
+            <param name="offset"></param>
+            <param name="data"></param>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.Write``1(System.IntPtr,``0[],System.UInt32,System.UInt32)">
+            <summary>
+            Writes the specified array T[] data to a memory location.
+            </summary>
+            <typeparam name="T">Type of a data to write.</typeparam>
+            <param name="destination">Memory location to write to.</param>
+            <param name="data">The array of T data to write.</param>
+            <param name="offset">The offset in the array to read from.</param>
+            <param name="count">The number of T element to write to the memory location.</param>
+            <returns>destination pointer + sizeof(T) * count.</returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.StructIsSame``1(``0@,``0@)">
+            <summary>
+            Compare two structs are the same.
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="s1"></param>
+            <param name="s2"></param>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.NativeHelper.StructIsSame4BytesAligned``1(``0@,``0@)">
+            <summary>
+            Compare two structs are the same. To use this function, struct must be 4 bytes aligned.
+            </summary>
+            <typeparam name="T"></typeparam>
+            <param name="s1"></param>
+            <param name="s2"></param>
+            <returns></returns>
+        </member>
+        <member name="T:HelixToolkit.Noise2d">
+            <summary>
+            Implements improved Perlin noise in 2D. 
+            Transcribed from http://www.siafoo.net/snippet/144?nolinenos#perlin2003
+            From StackOverflow: https://stackoverflow.com/questions/8659351/2d-perlin-noise
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.Noise2d.Reseed">
+            <summary>
+            generate a new permutation.
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.Noise2d.Noise(System.Single,System.Single)">
+            <summary>
+            Noises the specified x.
+            </summary>
+            <param name="x">The x.</param>
+            <param name="y">The y.</param>
+            <returns></returns>
+        </member>
+        <member name="M:HelixToolkit.Noise2d.GenerateNoiseMap(System.Int32,System.Int32,System.Int32,System.Single[]@)">
+            <summary>
+            Generates the noise map.
+            From https://stackoverflow.com/questions/8659351/2d-perlin-noise
+            </summary>
+            <param name="width">The width.</param>
+            <param name="height">The height.</param>
+            <param name="result">The result.</param>
+            <param name="octaves">The octaves.</param>
+        </member>
+        <member name="T:HelixToolkit.StringExtensions">
+            <summary>
+            Extension methods for strings.
+            </summary>
+        </member>
+        <member name="F:HelixToolkit.StringExtensions.oneOrMoreWhitespaces">
+            <summary>
+            A regular expression containing "a one or more whitespaces" pattern.
+            </summary>
+        </member>
+        <member name="M:HelixToolkit.StringExtensions.SplitOnWhitespace(System.String)">
+            <summary>
+            Splits the string on whitespace.
+            </summary>
+            <param name="input">The input string.</param>
+            <returns>Array of strings.</returns>
+        </member>
+        <member name="M:HelixToolkit.StringExtensions.EnumerateToString(System.Collections.IEnumerable,System.String,System.String)">
+            <summary>
+            Creates a string from the items in an enumerable.
+            </summary>
+            <param name="items">The items.</param>
+            <param name="prefix">The prefix.</param>
+            <param name="separator">The separator.</param>
+            <returns>
+            A string.
+            </returns>
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.#ctor(System.String,System.IFormatProvider)">
+            <summary> 
+            Constructor for TokenizerHelper which accepts an IFormatProvider.
+            If the IFormatProvider is null, we use the thread's IFormatProvider info. 
+            We will use ',' as the list separator, unless it's the same as the
+            decimal separator.  If it *is*, then we can't determine if, say, "23,5" is one
+            number or two.  In this case, we will use ";" as the separator.
+            </summary> 
+            <param name="str"> The string which will be tokenized. </param>
+            <param name="formatProvider"> The IFormatProvider which controls this tokenization. </param> 
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.#ctor(System.String,System.Char,System.Char)">
+            <summary>
+            Initialize the TokenizerHelper with the string to tokenize,
+            the char which represents quotes and the list separator.
+            </summary> 
+            <param name="str"> The string to tokenize. </param>
+            <param name="quoteChar"> The quote char. </param> 
+            <param name="separator"> The list separator. </param> 
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.Initialize(System.String,System.Char,System.Char)">
+            <summary>
+            Initialize the TokenizerHelper with the string to tokenize,
+            the char which represents quotes and the list separator.
+            </summary> 
+            <param name="str"> The string to tokenize. </param>
+            <param name="quoteChar"> The quote char. </param> 
+            <param name="separator"> The list separator. </param> 
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.LastTokenRequired">
+            <summary> 
+            Throws an exception if there is any non-whitespace left un-parsed.
+            </summary> 
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.NextToken">
+            <summary> 
+            Advances to the NextToken
+            </summary>
+            <returns>true if next token was found, false if at end of string</returns>
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.NextTokenRequired">
+            <summary> 
+            Advances to the NextToken, throwing an exception if not present
+            </summary>
+            <returns>The next token found</returns>
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.NextTokenRequired(System.Boolean)">
+            <summary>
+            Advances to the NextToken, throwing an exception if not present 
+            </summary> 
+            <returns>The next token found</returns>
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.NextToken(System.Boolean)">
+            <summary>
+            Advances to the NextToken
+            </summary>
+            <returns>true if next token was found, false if at end of string</returns> 
+        </member>
+        <member name="M:HelixToolkit.TokenizerHelper.NextToken(System.Boolean,System.Char)">
+            <summary>
+            Advances to the NextToken.  A separator character can be specified
+            which overrides the one previously set. 
+            </summary>
+            <returns>true if next token was found, false if at end of string</returns> 
+        </member>
+        <member name="T:System.Runtime.CompilerServices.OverloadResolutionPriorityAttribute">
+            <summary>
+            Specifies the priority of a member in overload resolution. When unspecified, the default priority is 0.
+            </summary>
+        </member>
+        <member name="M:System.Runtime.CompilerServices.OverloadResolutionPriorityAttribute.#ctor(System.Int32)">
+            <summary>
+            Initializes a new instance of the <see cref="T:System.Runtime.CompilerServices.OverloadResolutionPriorityAttribute"/> class.
+            </summary>
+            <param name="priority">The priority of the attributed member. Higher numbers are prioritized, lower numbers are deprioritized. 0 is the default if no attribute is present.</param>
+        </member>
+        <member name="P:System.Runtime.CompilerServices.OverloadResolutionPriorityAttribute.Priority">
+            <summary>
+            The priority of the member.
+            </summary>
+        </member>
+        <member name="T:System.Runtime.CompilerServices.ParamCollectionAttribute">
+            <summary>
+            Indicates that a method will allow a variable number of arguments in its invocation.
+            </summary>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>HelixToolkit.Wpf</id>
+    <version>3.1.2</version>
+    <authors>JeremyAnsel, Lunci, objo</authors>
+    <license type="file">LICENSE</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <icon>helixtoolkit.png</icon>
+    <readme>README.md</readme>
+    <projectUrl>http://www.helix-toolkit.org/</projectUrl>
+    <iconUrl>https://avatars3.githubusercontent.com/u/8432523?s=200&amp;v=4</iconUrl>
+    <description>Helix Toolkit is a collection of 3D components for .NET. This package is based on WPF.</description>
+    <copyright>Copyright (C) Helix Toolkit 2023</copyright>
+    <tags>3D WPF WPF3D Visualization</tags>
+    <repository type="git" url="https://github.com/helix-toolkit/helix-toolkit" branch="refs/heads/tags/v3.1.2" commit="0d10a9fc27bbe06d4ce74c580612217af14d3fc6" />
+    <dependencies>
+      <group targetFramework=".NETFramework4.8">
+        <dependency id="HelixToolkit.Geometry" version="3.1.2" exclude="Build,Analyzers" />
+        <dependency id="HelixToolkit" version="3.1.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Common" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Diagnostics" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Mvvm" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="System.IO.Compression" version="4.3.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net6.0-windows7.0">
+        <dependency id="HelixToolkit.Geometry" version="3.1.2" exclude="Build,Analyzers" />
+        <dependency id="HelixToolkit" version="3.1.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Common" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Diagnostics" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Mvvm" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="System.IO.Compression" version="4.3.0" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework="net8.0-windows7.0">
+        <dependency id="HelixToolkit.Geometry" version="3.1.2" exclude="Build,Analyzers" />
+        <dependency id="HelixToolkit" version="3.1.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Common" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Diagnostics" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="CommunityToolkit.Mvvm" version="8.3.2" exclude="Build,Analyzers" />
+        <dependency id="System.IO.Compression" version="4.3.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+    <frameworkReferences>
+      <group targetFramework="net6.0-windows7.0">
+        <frameworkReference name="Microsoft.WindowsDesktop.App.WPF" />
+      </group>
+      <group targetFramework="net8.0-windows7.0">
+        <frameworkReference name="Microsoft.WindowsDesktop.App.WPF" />
+      </group>
+      <group targetFramework=".NETFramework4.8" />
+    </frameworkReferences>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System.IO.Compression" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.IO" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Net.Http" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Runtime" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Security.Cryptography.Algorithms" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Security.Cryptography.Encoding" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Security.Cryptography.Primitives" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Security.Cryptography.X509Certificates" targetFramework=".NETFramework4.8" />
+      <frameworkAssembly assemblyName="System.Text.RegularExpressions" targetFramework=".NETFramework4.8" />
+    </frameworkAssemblies>
+  </metadata>
+</package>

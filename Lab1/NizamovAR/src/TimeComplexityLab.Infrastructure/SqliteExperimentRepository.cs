@@ -38,4 +38,32 @@ public class SqliteExperimentRepository : IExperimentRepository
         db.Measurements.AddRange(measurements);
         await db.SaveChangesAsync();
     }
+
+    public async Task<List<ExperimentSession>> GetAllSessionsAsync()
+    {
+        using var db = new AppDbContext();
+        return await db.Sessions
+            .OrderByDescending(s => s.StartedAtUtc)
+            .ToListAsync();
+    }
+
+    public async Task<List<Measurement>> GetMeasurementsBySessionsAsync(
+        IReadOnlyCollection<Guid> sessionIds)
+    {
+        using var db = new AppDbContext();
+        return await db.Measurements
+            .Where(m => sessionIds.Contains(m.SessionId))
+            .ToListAsync();
+    }
+
+    public async Task DeleteSessionAsync(Guid sessionId)
+    {
+        using var db = new AppDbContext();
+        var session = await db.Sessions
+            .Include(s => s.Measurements)
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+        if (session is null) return;
+        db.Sessions.Remove(session);
+        await db.SaveChangesAsync();
+    }
 }
