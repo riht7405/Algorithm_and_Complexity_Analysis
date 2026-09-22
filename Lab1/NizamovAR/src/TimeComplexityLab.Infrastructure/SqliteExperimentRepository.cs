@@ -20,12 +20,14 @@ public class SqliteExperimentRepository : IExperimentRepository
     }
 
     public async Task<List<Measurement>> GetCachedMeasurementsAsync(
-        string algorithmId, int n, int runsCount)
+        string algorithmId, int n, int m, int runsCount)
     {
         using var db = new AppDbContext();
         return await db.Measurements
-            .Where(m => m.Session!.AlgorithmId == algorithmId && m.N == n)
-            .OrderBy(m => m.RunIndex)
+            .Where(x => x.Session!.AlgorithmId == algorithmId
+                        && x.N == n
+                        && x.M == m)
+            .OrderBy(x => x.RunIndex)
             .Take(runsCount)
             .ToListAsync();
     }

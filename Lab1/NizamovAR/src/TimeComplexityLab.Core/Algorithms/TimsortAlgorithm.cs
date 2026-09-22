@@ -4,21 +4,27 @@ namespace TimeComplexityLab.Core.Algorithms;
 
 public class TimsortAlgorithm : IAlgorithm
 {
-    private const int Run = 32; // minrun из классической реализации
+    private const int Run = 32;
 
     public string Id => "sorting.timsort";
     public string DisplayName => "Гибридная сортировка Timsort";
     public string Category => "Сортировки";
     public string TheoreticalComplexity => "O(n log n)";
+    public ExperimentDefaults Defaults => new(
+    NMax: 100_000, NStep: 1_000, MMax: 0, MStep: 0,
+    RunsPerPoint: 5, Hypothesis: "NLogN");
 
-    public object GenerateInput(int n, Random random)
+    public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
+    public MeasureUnit MeasureUnit => MeasureUnit.Time;
+
+    public object GenerateInput(ExperimentPoint point, Random random)
     {
-        var v = new double[n];
-        for (int i = 0; i < n; i++) v[i] = random.NextDouble() * 1000.0;
+        var v = new double[point.N];
+        for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 1000.0;
         return v;
     }
 
-    public void Execute(object input)
+    public void Execute(object input, IExecutionTracker tracker)
     {
         var v = (double[])input;
         Sort(v);
@@ -28,13 +34,11 @@ public class TimsortAlgorithm : IAlgorithm
     {
         int n = v.Length;
 
-        // Шаг 1. Сортировка вставками на блоках размером Run
         for (int i = 0; i < n; i += Run)
         {
             InsertionSort(v, i, Math.Min(i + Run - 1, n - 1));
         }
 
-        // Шаг 2. Слияние блоков с удвоением размера
         for (int size = Run; size < n; size = 2 * size)
         {
             for (int left = 0; left < n; left += 2 * size)

@@ -8,23 +8,26 @@ public class VectorSumAlgorithm : IAlgorithm
     public string DisplayName => "Сумма элементов вектора";
     public string Category => "Векторы";
     public string TheoreticalComplexity => "O(n)";
+    public ExperimentDefaults Defaults => new(
+    NMax: 50_000, NStep: 500, MMax: 0, MStep: 0,
+    RunsPerPoint: 5, Hypothesis: "Linear");
 
-    public object GenerateInput(int n, Random random)
+    public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
+    public MeasureUnit MeasureUnit => MeasureUnit.Time;
+
+    public object GenerateInput(ExperimentPoint point, Random random)
     {
-        var vector = new double[n];
-        for (int i = 0; i < n; i++)
-            vector[i] = random.NextDouble() * 100.0;
-        return vector;
+        var v = new double[point.N];
+        for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 100.0;
+        return v;
     }
 
-    public void Execute(object input)
+    public void Execute(object input, IExecutionTracker tracker)
     {
-        var vector = (double[])input;
+        var v = (double[])input;
         double sum = 0.0;
-        for (int i = 0; i < vector.Length; i++)
-            sum += vector[i];
-
-        // Защита от выкидывания цикла JIT-компилятором в Release
+        for (int i = 0; i < v.Length; i++)
+            sum += v[i];
         GC.KeepAlive(sum);
     }
 }

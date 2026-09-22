@@ -1,6 +1,6 @@
 ﻿using TimeComplexityLab.Domain;
 
-namespace TimeComplexityLab.Core;
+namespace TimeComplexityLab.Core.Algorithms;
 
 public class QuickSortAlgorithm : IAlgorithm
 {
@@ -8,15 +8,21 @@ public class QuickSortAlgorithm : IAlgorithm
     public string DisplayName => "Быстрая сортировка";
     public string Category => "Сортировки";
     public string TheoreticalComplexity => "O(n log n)";
+    public ExperimentDefaults Defaults => new(
+    NMax: 100_000, NStep: 1_000, MMax: 0, MStep: 0,
+    RunsPerPoint: 5, Hypothesis: "NLogN");
 
-    public object GenerateInput(int n, Random random)
+    public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
+    public MeasureUnit MeasureUnit => MeasureUnit.Time;
+
+    public object GenerateInput(ExperimentPoint point, Random random)
     {
-        var v = new double[n];
-        for (int i = 0; i < n; i++) v[i] = random.NextDouble() * 1000.0;
+        var v = new double[point.N];
+        for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 1000.0;
         return v;
     }
 
-    public void Execute(object input)
+    public void Execute(object input, IExecutionTracker tracker)
     {
         var v = (double[])input;
         Sort(v, 0, v.Length - 1);

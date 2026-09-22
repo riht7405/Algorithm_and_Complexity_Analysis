@@ -1,6 +1,6 @@
 ﻿using TimeComplexityLab.Domain;
 
-namespace TimeComplexityLab.Core;
+namespace TimeComplexityLab.Core.Algorithms;
 
 public class PolynomialNaiveAlgorithm : IAlgorithm
 {
@@ -10,15 +10,21 @@ public class PolynomialNaiveAlgorithm : IAlgorithm
     public string DisplayName => "Многочлен (наивный метод)";
     public string Category => "Многочлены";
     public string TheoreticalComplexity => "O(n²)";
+    public ExperimentDefaults Defaults => new(
+    NMax: 5_000, NStep: 100, MMax: 0, MStep: 0,
+    RunsPerPoint: 5, Hypothesis: "Quadratic");
 
-    public object GenerateInput(int n, Random random)
+    public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
+    public MeasureUnit MeasureUnit => MeasureUnit.Time;
+
+    public object GenerateInput(ExperimentPoint point, Random random)
     {
-        var v = new double[n];
-        for (int i = 0; i < n; i++) v[i] = random.NextDouble() * 2.0 - 1.0;
+        var v = new double[point.N];
+        for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 2.0 - 1.0;
         return v;
     }
 
-    public void Execute(object input)
+    public void Execute(object input, IExecutionTracker tracker)
     {
         var v = (double[])input;
         double result = 0.0;

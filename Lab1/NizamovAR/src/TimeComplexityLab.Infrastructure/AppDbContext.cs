@@ -24,6 +24,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Measurement>()
             .HasIndex(m => new { m.N, m.RunIndex });
 
+        modelBuilder.Entity<Measurement>()
+            .HasIndex(x => new { x.N, x.M, x.RunIndex });
+
         modelBuilder.Entity<ExperimentSession>()
             .HasIndex(s => new { s.AlgorithmId, s.StartedAtUtc });
     }

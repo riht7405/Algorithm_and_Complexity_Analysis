@@ -7,14 +7,21 @@ public interface IAlgorithm
     string Category { get; }
     string TheoreticalComplexity { get; }
 
-    /// <summary>
-    /// Генерация входных данных. Вызывается ВНЕ таймера.
-    /// </summary>
-    object GenerateInput(int n, Random random);
+    ExperimentDimension Dimension { get; }
+    MeasureUnit MeasureUnit { get; }
+
+    ExperimentDefaults Defaults { get; }
 
     /// <summary>
-    /// Чистая работа алгоритма. Всё, что здесь — замеряется.
-    /// Никаких аллокаций, Console.WriteLine, обращений к БД.
+    /// Генерация входных данных. Вызывается ВНЕ таймера.
+    /// Для 1D — использует point.N. Для 2D — и point.N, и point.M.
     /// </summary>
-    void Execute(object input);
+    object GenerateInput(ExperimentPoint point, Random random);
+
+    /// <summary>
+    /// Чистая работа алгоритма. Только это замеряется.
+    /// Если MeasureUnit == Steps — алгоритм сам считает шаги
+    /// и записывает их через tracker.
+    /// </summary>
+    void Execute(object input, IExecutionTracker tracker);
 }
