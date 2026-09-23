@@ -10,19 +10,32 @@ public class TimsortAlgorithm : IAlgorithm
     public string DisplayName => "Гибридная сортировка Timsort";
     public string Category => "Сортировки";
     public string TheoreticalComplexity => "O(n log n)";
-    public ExperimentDefaults Defaults => new(
-    NMax: 100_000, NStep: 1_000, MMax: 0, MStep: 0,
-    RunsPerPoint: 5, Hypothesis: "NLogN");
 
     public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
     public MeasureUnit MeasureUnit => MeasureUnit.Time;
 
-    public object GenerateInput(ExperimentPoint point, Random random)
+    public ExperimentDefaults Defaults => new(
+        NMax: 5_000_000, NStep: 10_000, MMax: 0, MStep: 0,
+        RunsPerPoint: 5, Hypothesis: "NLogN");
+
+    public object GenerateSource(ExperimentPoint maxPoint, Random random)
     {
-        var v = new double[point.N];
+        var v = new double[maxPoint.N];
         for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 1000.0;
         return v;
     }
+
+    public object Slice(object source, ExperimentPoint point)
+    {
+        var v = (double[])source;
+        if (point.N >= v.Length) return v;
+
+        var slice = new double[point.N];
+        Array.Copy(v, slice, point.N);
+        return slice;
+    }
+
+    public object Clone(object input) => ((double[])input).Clone();
 
     public void Execute(object input, IExecutionTracker tracker)
     {
@@ -35,23 +48,15 @@ public class TimsortAlgorithm : IAlgorithm
         int n = v.Length;
 
         for (int i = 0; i < n; i += Run)
-        {
             InsertionSort(v, i, Math.Min(i + Run - 1, n - 1));
-        }
 
         for (int size = Run; size < n; size = 2 * size)
-        {
             for (int left = 0; left < n; left += 2 * size)
             {
                 int mid = left + size - 1;
                 int right = Math.Min(left + 2 * size - 1, n - 1);
-
-                if (mid < right)
-                {
-                    Merge(v, left, mid, right);
-                }
+                if (mid < right) Merge(v, left, mid, right);
             }
-        }
     }
 
     private static void InsertionSort(double[] v, int left, int right)
@@ -73,10 +78,8 @@ public class TimsortAlgorithm : IAlgorithm
     {
         int len1 = m - l + 1;
         int len2 = r - m;
-
         var left = new double[len1];
         var right = new double[len2];
-
         Array.Copy(v, l, left, 0, len1);
         Array.Copy(v, m + 1, right, 0, len2);
 

@@ -8,34 +8,46 @@ public class BinaryPowerAlgorithm : IAlgorithm
     public string DisplayName => "Возведение в степень (бинарное)";
     public string Category => "Возведение в степень";
     public string TheoreticalComplexity => "O(log n)";
-    public ExperimentDefaults Defaults => new(
-    NMax: 1_000, NStep: 10, MMax: 0, MStep: 0,
-    RunsPerPoint: 1, Hypothesis: "Logarithmic");
 
     public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
     public MeasureUnit MeasureUnit => MeasureUnit.Steps;
 
-    public object GenerateInput(ExperimentPoint point, Random random)
-    {
-        return (X: 1.0001, N: point.N);
-    }
+    public ExperimentDefaults Defaults => new(
+        NMax: 10_000, NStep: 5, MMax: 0, MStep: 0,
+        RunsPerPoint: 5, Hypothesis: "Logarithmic");
+
+    public object GenerateSource(ExperimentPoint maxPoint, Random random)
+        => (X: 1.0001, MaxN: maxPoint.N);
+
+    public object Slice(object source, ExperimentPoint point)
+        => (X: 1.0001, N: point.N);
+
+    public object Clone(object input) => input;
 
     public void Execute(object input, IExecutionTracker tracker)
     {
         var (x, n) = ((double X, int N))input;
+
+        if (n == 0) { GC.KeepAlive(1.0); return; }
+
         double result = 1.0;
-        double base_ = x;
+        double b = x;
         int exp = n;
 
         while (exp > 0)
         {
-            tracker.CountStep();   // каждое умножение = шаг
             if ((exp & 1) == 1)
-                result *= base_;
-            base_ *= base_;
+            {
+                result *= b;
+                tracker.CountStep();
+            }
             exp >>= 1;
+            if (exp > 0)
+            {
+                b *= b;
+                tracker.CountStep();
+            }
         }
-
         GC.KeepAlive(result);
     }
 }

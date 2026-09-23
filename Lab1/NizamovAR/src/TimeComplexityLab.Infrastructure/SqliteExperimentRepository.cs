@@ -43,6 +43,7 @@ public class SqliteExperimentRepository : IExperimentRepository
     {
         using var db = new AppDbContext();
         return await db.Sessions
+            .Where(s => db.Measurements.Any(m => m.SessionId == s.Id))
             .OrderByDescending(s => s.StartedAtUtc)
             .ToListAsync();
     }
@@ -65,5 +66,19 @@ public class SqliteExperimentRepository : IExperimentRepository
         if (session is null) return;
         db.Sessions.Remove(session);
         await db.SaveChangesAsync();
+    }
+
+    public async Task<int> CleanupEmptySessionsAsync()
+    {
+        using var db = new AppDbContext();
+        var emptySessions = await db.Sessions
+            .Where(s => !db.Measurements.Any(m => m.SessionId == s.Id))
+            .ToListAsync();
+
+        if (emptySessions.Count == 0) return 0;
+
+        db.Sessions.RemoveRange(emptySessions);
+        await db.SaveChangesAsync();
+        return emptySessions.Count;
     }
 }

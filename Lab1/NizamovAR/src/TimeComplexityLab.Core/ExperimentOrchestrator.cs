@@ -36,11 +36,19 @@ public class ExperimentOrchestrator
 
         await _repository.SaveSessionAsync(session);
 
+        var maxPoint = new ExperimentPoint(
+            nMax,
+            algorithm.Dimension == ExperimentDimension.TwoDimensional ? mMax : null);
+
+        var sourceInput = await Task.Run(() =>
+            algorithm.GenerateSource(maxPoint, new Random(42)));
+
         if (algorithm.Dimension == ExperimentDimension.OneDimensional)
         {
             for (int n = nStep; n <= nMax; n += nStep)
             {
-                await RunPointAsync(algorithm, session, new ExperimentPoint(n), runsCount, forceRecalc);
+                await RunPointAsync(algorithm, session, sourceInput,
+                    new ExperimentPoint(n), runsCount, forceRecalc);
             }
         }
         else
@@ -49,7 +57,8 @@ public class ExperimentOrchestrator
             {
                 for (int m = mStep; m <= mMax; m += mStep)
                 {
-                    await RunPointAsync(algorithm, session, new ExperimentPoint(n, m), runsCount, forceRecalc);
+                    await RunPointAsync(algorithm, session, sourceInput,
+                        new ExperimentPoint(n, m), runsCount, forceRecalc);
                 }
             }
         }
@@ -60,11 +69,12 @@ public class ExperimentOrchestrator
     private async Task RunPointAsync(
         IAlgorithm algorithm,
         ExperimentSession session,
+        object sourceInput,
         ExperimentPoint point,
         int runsCount,
         bool forceRecalc)
     {
-        // Проверка кэша
+        // === Попадание в кэш ===
         if (!forceRecalc)
         {
             var cached = await _repository.GetCachedMeasurementsAsync(
@@ -72,55 +82,71 @@ public class ExperimentOrchestrator
 
             if (cached.Count == runsCount)
             {
-                foreach (var c in cached)
+                // Создаём НОВЫЕ измерения, привязанные к ТЕКУЩЕЙ сессии
+                var copied = cached.Select(c => new Measurement
                 {
-                    session.Measurements.Add(new Measurement
-                    {
-                        N = point.N,
-                        M = point.M ?? 0,
-                        RunIndex = c.RunIndex,
-                        ElapsedMilliseconds = c.ElapsedMilliseconds,
-                        Steps = c.Steps
-                    });
-                }
+                    SessionId = session.Id,   // ← важно: привязка к текущей сессии
+                    N = point.N,
+                    M = point.M ?? 0,
+                    RunIndex = c.RunIndex,
+                    ElapsedMilliseconds = c.ElapsedMilliseconds,
+                    Steps = c.Steps
+                }).ToList();
+
+                foreach (var m in copied)
+                    session.Measurements.Add(m);
+
+                // ← ГЛАВНОЕ: сохраняем в БД, чтобы сессия не осталась пустой
+                await _repository.SaveMeasurementsAsync(copied);
+
                 return;
             }
         }
 
-        // Усиленный warm-up: 10 прогонов вместо 1,
-        // чтобы JIT успел скомпилировать все ветки
-        for (int w = 0; w < 10; w++)
-        {
-            var warmupInput = algorithm.GenerateInput(point, new Random(42));
-            algorithm.Execute(warmupInput, new ExecutionTracker());
-        }
-
-        // Основные замеры — тот же seed, тот же вход
+        // === Реальные замеры ===
         var newMeasurements = new List<Measurement>();
 
-        for (int run = 1; run <= runsCount; run++)
+        await Task.Run(() =>
         {
-            var tracker = new ExecutionTracker();
-            var input = algorithm.GenerateInput(point, new Random(42));
-
-            var sw = Stopwatch.StartNew();
-            algorithm.Execute(input, tracker);
-            sw.Stop();
-
-            var m = new Measurement
+            // Warm-up
+            for (int w = 0; w < 10; w++)
             {
-                SessionId = session.Id,
-                N = point.N,
-                M = point.M ?? 0,
-                RunIndex = run,
-                ElapsedMilliseconds = sw.Elapsed.TotalMilliseconds,
-                Steps = tracker.Steps
-            };
+                var slice = algorithm.Slice(sourceInput, point);
+                var input = algorithm.Clone(slice);
+                algorithm.Execute(input, new ExecutionTracker());
+            }
 
-            newMeasurements.Add(m);
+            // Замеры
+            for (int run = 1; run <= runsCount; run++)
+            {
+                var slice = algorithm.Slice(sourceInput, point);
+                var input = algorithm.Clone(slice);
+                var tracker = new ExecutionTracker();
+
+                var sw = Stopwatch.StartNew();
+                algorithm.Execute(input, tracker);
+                sw.Stop();
+
+                newMeasurements.Add(new Measurement
+                {
+                    SessionId = session.Id,
+                    N = point.N,
+                    M = point.M ?? 0,
+                    RunIndex = run,
+                    ElapsedMilliseconds = sw.Elapsed.TotalMilliseconds,
+                    Steps = tracker.Steps
+                });
+            }
+        });
+
+        foreach (var m in newMeasurements)
             session.Measurements.Add(m);
-        }
 
         await _repository.SaveMeasurementsAsync(newMeasurements);
+
+        if (point.N >= 5_000_000)
+        {
+            GC.Collect(2, GCCollectionMode.Optimized, blocking: false);
+        }
     }
 }

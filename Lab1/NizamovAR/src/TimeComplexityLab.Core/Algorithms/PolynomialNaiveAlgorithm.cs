@@ -10,19 +10,32 @@ public class PolynomialNaiveAlgorithm : IAlgorithm
     public string DisplayName => "Многочлен (наивный метод)";
     public string Category => "Многочлены";
     public string TheoreticalComplexity => "O(n²)";
-    public ExperimentDefaults Defaults => new(
-    NMax: 5_000, NStep: 100, MMax: 0, MStep: 0,
-    RunsPerPoint: 5, Hypothesis: "Quadratic");
 
     public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
     public MeasureUnit MeasureUnit => MeasureUnit.Time;
 
-    public object GenerateInput(ExperimentPoint point, Random random)
+    public ExperimentDefaults Defaults => new(
+        NMax: 20_000, NStep: 100, MMax: 0, MStep: 0,
+        RunsPerPoint: 5, Hypothesis: "Quadratic");
+
+    public object GenerateSource(ExperimentPoint maxPoint, Random random)
     {
-        var v = new double[point.N];
+        var v = new double[maxPoint.N];
         for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 2.0 - 1.0;
         return v;
     }
+
+    public object Slice(object source, ExperimentPoint point)
+    {
+        var v = (double[])source;
+        if (point.N >= v.Length) return v;
+
+        var slice = new double[point.N];
+        Array.Copy(v, slice, point.N);
+        return slice;
+    }
+
+    public object Clone(object input) => input;
 
     public void Execute(object input, IExecutionTracker tracker)
     {

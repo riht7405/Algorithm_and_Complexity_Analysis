@@ -8,26 +8,37 @@ public class HirschbergAlgorithm : IAlgorithm
     public string DisplayName => "Алгоритм Хиршберга (LCS)";
     public string Category => "Последовательности";
     public string TheoreticalComplexity => "O(n·m)";
-    public ExperimentDefaults Defaults => new(
-    NMax: 1_000, NStep: 50, MMax: 1_000, MStep: 50,
-    RunsPerPoint: 1, Hypothesis: "Quadratic");
 
     public ExperimentDimension Dimension => ExperimentDimension.TwoDimensional;
     public MeasureUnit MeasureUnit => MeasureUnit.Time;
 
-    public object GenerateInput(ExperimentPoint point, Random random)
+    public ExperimentDefaults Defaults => new(
+        NMax: 2_000, NStep: 100, MMax: 2_000, MStep: 100,
+        RunsPerPoint: 1, Hypothesis: "Quadratic");
+
+    public object GenerateSource(ExperimentPoint maxPoint, Random random)
     {
+        int n = maxPoint.N;
+        int m = maxPoint.M ?? n;
+        const string alphabet = "ACGT";
+
+        var a = new char[n];
+        var b = new char[m];
+        for (int i = 0; i < n; i++) a[i] = alphabet[random.Next(alphabet.Length)];
+        for (int j = 0; j < m; j++) b[j] = alphabet[random.Next(alphabet.Length)];
+
+        return (new string(a), new string(b));
+    }
+
+    public object Slice(object source, ExperimentPoint point)
+    {
+        var (a, b) = ((string A, string B))source;
         int n = point.N;
         int m = point.M ?? n;
-
-        const string alphabet = "ACGT";
-        var sx = new char[n];
-        var sy = new char[m];
-        for (int i = 0; i < n; i++) sx[i] = alphabet[random.Next(alphabet.Length)];
-        for (int j = 0; j < m; j++) sy[j] = alphabet[random.Next(alphabet.Length)];
-
-        return (new string(sx), new string(sy));
+        return (a.Substring(0, n), b.Substring(0, m));
     }
+
+    public object Clone(object input) => input;
 
     public void Execute(object input, IExecutionTracker tracker)
     {

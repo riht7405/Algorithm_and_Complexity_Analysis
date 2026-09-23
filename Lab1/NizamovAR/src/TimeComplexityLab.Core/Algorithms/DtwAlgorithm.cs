@@ -8,17 +8,18 @@ public class DtwAlgorithm : IAlgorithm
     public string DisplayName => "Dynamic Time Warping";
     public string Category => "Последовательности";
     public string TheoreticalComplexity => "O(n·m)";
-    public ExperimentDefaults Defaults => new(
-    NMax: 500, NStep: 25, MMax: 500, MStep: 25,
-    RunsPerPoint: 1, Hypothesis: "Quadratic");
 
     public ExperimentDimension Dimension => ExperimentDimension.TwoDimensional;
     public MeasureUnit MeasureUnit => MeasureUnit.Time;
 
-    public object GenerateInput(ExperimentPoint point, Random random)
+    public ExperimentDefaults Defaults => new(
+        NMax: 1_500, NStep: 75, MMax: 1_500, MStep: 75,
+        RunsPerPoint: 1, Hypothesis: "Quadratic");
+
+    public object GenerateSource(ExperimentPoint maxPoint, Random random)
     {
-        int n = point.N;
-        int m = point.M ?? n;
+        int n = maxPoint.N;
+        int m = maxPoint.M ?? n;
 
         var a = new double[n];
         var b = new double[m];
@@ -28,13 +29,27 @@ public class DtwAlgorithm : IAlgorithm
         return (a, b);
     }
 
+    public object Slice(object source, ExperimentPoint point)
+    {
+        var (a, b) = ((double[] A, double[] B))source;
+        int n = point.N;
+        int m = point.M ?? n;
+
+        var aSlice = new double[n];
+        var bSlice = new double[m];
+        Array.Copy(a, aSlice, n);
+        Array.Copy(b, bSlice, m);
+        return (aSlice, bSlice);
+    }
+
+    public object Clone(object input) => input;
+
     public void Execute(object input, IExecutionTracker tracker)
     {
         var (a, b) = ((double[] A, double[] B))input;
         int n = a.Length;
         int m = b.Length;
 
-        // Две строки вместо полной таблицы — O(min(n,m)) памяти
         var prev = new double[m + 1];
         var curr = new double[m + 1];
 

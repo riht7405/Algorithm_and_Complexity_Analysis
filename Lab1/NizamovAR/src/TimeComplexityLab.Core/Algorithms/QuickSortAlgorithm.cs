@@ -8,19 +8,32 @@ public class QuickSortAlgorithm : IAlgorithm
     public string DisplayName => "Быстрая сортировка";
     public string Category => "Сортировки";
     public string TheoreticalComplexity => "O(n log n)";
-    public ExperimentDefaults Defaults => new(
-    NMax: 100_000, NStep: 1_000, MMax: 0, MStep: 0,
-    RunsPerPoint: 5, Hypothesis: "NLogN");
 
     public ExperimentDimension Dimension => ExperimentDimension.OneDimensional;
     public MeasureUnit MeasureUnit => MeasureUnit.Time;
 
-    public object GenerateInput(ExperimentPoint point, Random random)
+    public ExperimentDefaults Defaults => new(
+        NMax: 2_000_000, NStep: 10_000, MMax: 0, MStep: 0,
+        RunsPerPoint: 5, Hypothesis: "NLogN");
+
+    public object GenerateSource(ExperimentPoint maxPoint, Random random)
     {
-        var v = new double[point.N];
+        var v = new double[maxPoint.N];
         for (int i = 0; i < v.Length; i++) v[i] = random.NextDouble() * 1000.0;
         return v;
     }
+
+    public object Slice(object source, ExperimentPoint point)
+    {
+        var v = (double[])source;
+        if (point.N >= v.Length) return v;
+
+        var slice = new double[point.N];
+        Array.Copy(v, slice, point.N);
+        return slice;
+    }
+
+    public object Clone(object input) => ((double[])input).Clone();
 
     public void Execute(object input, IExecutionTracker tracker)
     {
