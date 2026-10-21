@@ -1,0 +1,138 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; font-family: system-ui, sans-serif; }
+body { background: #0a0a0a; color: #e0e0e0; }
+
+#app { display: flex; height: 100vh; }
+
+#sidebar {
+    width: 300px;
+    background: #141414;
+    border-right: 1px solid #222;
+    padding: 16px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+#sidebar h1 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    color: #fff;
+}
+
+.panel {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #222;
+}
+
+.panel h2 {
+    font-size: 13px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+}
+
+.panel label {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 10px;
+    gap: 4px;
+}
+
+.panel input,
+.panel select {
+    background: #0a0a0a;
+    border: 1px solid #333;
+    color: #e0e0e0;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.panel input[type="range"] {
+    padding: 0;
+    accent-color: #3b82f6;
+}
+
+.stats div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+    padding: 4px 0;
+}
+
+.stats b { color: #3b82f6; font-weight: 500; }
+
+#viewport {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+}
+
+#viewport canvas {
+    position: absolute;
+    /* Растягиваем на весь экран */
+    width: 100%;
+    height: 100%;
+    
+    /* Сохраняем пропорции, чтобы не сплющивало */
+    object-fit: contain; 
+    
+    /* Оставляем четкие пиксели при увеличении */
+    image-rendering: pixelated;
+    
+    display: none;
+    transition: filter 0.15s ease, transform 0.1s ease-out;
+    transform-origin: center center;
+}
+
+#viewport canvas.active {
+    display: block;
+}
+
+/* Кнопки зума */
+.zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.zoom-controls button {
+    background: #141414;
+    color: #e0e0e0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.zoom-controls button:hover {
+    background: #222;
+}
+
+#error {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    padding: 12px;
+    background: #7f1d1d;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 13px;
+}

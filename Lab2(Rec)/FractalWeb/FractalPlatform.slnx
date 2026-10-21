@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FractalPlatform.Api/FractalPlatform.Api.csproj" />
+    <Project Path="src/FractalPlatform.Application/FractalPlatform.Application.csproj" />
+    <Project Path="src/FractalPlatform.Domain/FractalPlatform.Domain.csproj" />
+    <Project Path="src/FractalPlatform.Infrastructure/FractalPlatform.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FractalPlatform.Tests/FractalPlatform.Tests.csproj" />
+  </Folder>
+</Solution>

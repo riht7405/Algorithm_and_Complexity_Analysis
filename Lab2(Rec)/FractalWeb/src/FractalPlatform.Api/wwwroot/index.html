@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Fractal Platform</title>
+				<link rel="stylesheet" href="/css/style.css">
+</head>
+	<body>
+		<div id="app">
+			<aside id="sidebar">
+				<h1>Фракталы</h1>
+
+				<section class="panel">
+					<label for="fractal-select">Фрактал</label>
+					<select id="fractal-select"></select>
+				</section>
+
+				<section class="panel" id="params-panel">
+					<h2>Параметры</h2>
+					<div id="params-container"></div>
+				</section>
+
+				<section class="panel">
+					<h2>Палитра</h2>
+					<label for="palette-select">Цветовая схема</label>
+					<select id="palette-select"></select>
+				</section>
+
+				<section class="panel">
+					<h2>Раскраска</h2>
+					<label for="color-mode">Режим</label>
+					<select id="color-mode">
+						<option value="1" selected="">Циклический</option>
+						<option value="0">Линейный</option>
+						<option value="2">Логарифмический</option>
+						<option value="3">Корневой</option>
+					</select>
+					<label>
+						Частота цикла <input type="range" id="s-frequency" min="4" max="128" step="1" value="32">
+					</label>
+				</section>
+
+				<section class="panel">
+					<h2>Фильтры</h2>
+					<label>
+						Яркость <input type="range" id="s-brightness" min="50" max="150" value="100">
+					</label>
+					<label>
+						Контраст <input type="range" id="s-contrast" min="50" max="200" value="100">
+					</label>
+					<label>
+						Свечение <input type="range" id="s-glow" min="0" max="30" value="0">
+					</label>
+				</section>
+
+				<section class="panel stats" id="stats">
+					<div>
+						<span>Compute:</span>
+						<b id="st-compute">—</b>
+					</div>
+					<div>
+						<span>Size:</span>
+						<b id="st-size">—</b>
+					</div>
+					<div>
+						<span>Total:</span>
+						<b id="st-total">—</b>
+					</div>
+				</section>
+			</aside>
+
+			<main id="viewport">
+				<canvas id="canvas-gl"></canvas>
+				<canvas id="canvas-2d"></canvas>
+				<div id="error" hidden=""></div>
+
+				<!-- Кнопки зума -->
+				<div class="zoom-controls" id="zoom-controls" style="display: none;">
+					<button id="zoom-out" title="Уменьшить">−</button>
+					<button id="zoom-reset" title="Сбросить">1:1</button>
+					<button id="zoom-in" title="Увеличить">+</button>
+				</div>
+			</main>
+		</div>
+
+		<script type="module" src="/js/app.js"></script>
+	</body>
+</html>
