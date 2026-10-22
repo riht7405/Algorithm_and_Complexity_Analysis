@@ -15,6 +15,7 @@ public class SelmiFractal : IFractal
         CacheTtl: TimeSpan.FromMinutes(30)
     );
 
+    // Полное правило для генерации большого фрактала
     private static readonly string Temp =
         "wwwwwwwrrgwwwwwwwwwwwwwrrgggwwwwwwwwwwrrggbggwwwwwwwwwrrggwbbggwwwwwwwrr" +
         "rrrrrbbggwwwwwrrgbbbbbrrgggwwwrrggbggwrrggbggwrrggwbbggrggwbbggrrrrrrbbgrrrrrbb" +
@@ -24,6 +25,7 @@ public class SelmiFractal : IFractal
 
     static SelmiFractal()
     {
+        // Генерируем правило на основе Temp
         for (int i = 0; i <= Temp.Length - 7 - 20; i++)
         {
             string key = Temp.Substring(i, 7);
@@ -37,27 +39,28 @@ public class SelmiFractal : IFractal
         var p = SelmiParams.FromJson(request.Parameters);
         var sw = Stopwatch.StartNew();
 
-        // Делаем ширину зависящей от поколений (примерно 2:1), чтобы фрактал был квадратным
-        int width = Math.Max(94, p.Generations * 2);
-        int center = width / 2;
-
-        // Центрируем начальное "rrg"
-        string curr = new string('w', center - 1) + "rrg" + new string('w', width - center - 2);
+        // Делаем начальную строку шире, чтобы фрактал было видно
+        string curr = new string('w', 150) + "rrg" + new string('w', 150);
         var rows = new List<string>();
 
         for (int i = 0; i < p.Generations; i++)
         {
             rows.Add(curr);
+
+            // Добавляем 'w' по краям, чтобы фрактал не упирался в границы
             curr = "www" + curr + "www";
             var next = new char[curr.Length - 6];
+
             for (int j = 0; j < next.Length; j++)
             {
                 string key = curr.Substring(j, 7);
+                // Если правило не найдено, используем 'w' (белый/фон)
                 next[j] = Rule1.TryGetValue(key, out var val) ? val : 'w';
             }
             curr = new string(next);
         }
 
+        int width = rows[0].Length;
         int height = rows.Count;
         var cells = new byte[width * height];
 
@@ -67,10 +70,10 @@ public class SelmiFractal : IFractal
             {
                 cells[y * width + x] = rows[y][x] switch
                 {
-                    'w' => 0,
-                    'r' => 1,
-                    'g' => 2,
-                    'b' => 3,
+                    'w' => 0, // фон
+                    'r' => 1, // красный
+                    'g' => 2, // зеленый
+                    'b' => 3, // синий
                     _ => 0
                 };
             }
@@ -78,7 +81,7 @@ public class SelmiFractal : IFractal
 
         sw.Stop();
 
-        var result = new CellGridResult
+        return Task.FromResult<FractalResult>(new CellGridResult
         {
             FractalId = Id,
             ComputeTime = sw.Elapsed,
@@ -86,8 +89,6 @@ public class SelmiFractal : IFractal
             Cols = width,
             States = 4,
             Cells = cells
-        };
-
-        return Task.FromResult<FractalResult>(result);
+        });
     }
 }

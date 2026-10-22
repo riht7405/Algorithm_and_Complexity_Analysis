@@ -2,70 +2,58 @@ import { listFractals, computeFractal } from './api.js';
 import { PALETTE_NAMES } from './palettes.js';
 import { WebGLRenderer } from './renderer-webgl.js';
 import { Canvas2DRenderer } from './renderer-canvas2d.js';
+import { VectorRenderer } from './renderer-vector.js';
+import { HeatmapRenderer } from './renderer-heatmap.js';
 import { StyleEngine } from './style-engine.js';
+import { PanZoomController } from './pan-zoom.js';
 
 try {
     const canvasGL = document.getElementById('canvas-gl');
     const canvas2D = document.getElementById('canvas-2d');
     const errorEl = document.getElementById('error');
     const zoomControls = document.getElementById('zoom-controls');
+    
+    // Скрываем старые кнопки, так как теперь работает колесико
+    if (zoomControls) zoomControls.style.display = 'none';
+
     const stats = {
         compute: document.getElementById('st-compute'),
         size: document.getElementById('st-size'),
         total: document.getElementById('st-total')
     };
 
+    // Инициализируем Pan/Zoom для обоих канвасов
+    const panZoomGL = new PanZoomController(canvasGL);
+    const panZoom2D = new PanZoomController(canvas2D);
+
     const renderers = {
-        'IterationMap': { renderer: new WebGLRenderer(canvasGL), canvas: canvasGL },
-        'CellGrid':     { renderer: new Canvas2DRenderer(canvas2D), canvas: canvas2D }
+        'IterationMap': { renderer: new WebGLRenderer(canvasGL), canvas: canvasGL, pz: panZoomGL },
+        'CellGrid':     { renderer: new Canvas2DRenderer(canvas2D), canvas: canvas2D, pz: panZoom2D },
+        'PointPath':    { renderer: new VectorRenderer(canvas2D), canvas: canvas2D, pz: panZoom2D },
+        'Spectrum':     { renderer: new HeatmapRenderer(canvas2D), canvas: canvas2D, pz: panZoom2D }
     };
 
     let activeType = 'IterationMap';
-    let currentZoom = 1;
-
     canvasGL.classList.add('active');
 
     const styleEngine = new StyleEngine();
     styleEngine.setRenderer(renderers[activeType].renderer, renderers[activeType].canvas);
 
-    function applyZoom() {
-        if (activeType === 'CellGrid') {
-            canvas2D.style.transform = `scale(${currentZoom})`;
-        } else {
-            canvas2D.style.transform = 'none';
-        }
-    }
-
     function activate(type) {
         if (activeType === type) return;
+        
+        // Сбрасываем зум/позицию старого канваса
+        renderers[activeType].pz.reset();
         renderers[activeType].canvas.classList.remove('active');
+        
         activeType = type;
         renderers[type].canvas.classList.add('active');
         
-        // Показываем кнопки зума только для сеточных фракталов
-        zoomControls.style.display = (type === 'CellGrid') ? 'flex' : 'none';
-        
-        currentZoom = 1; // Сбрасываем зум при переключении
-        applyZoom();
-        
+        // Сбрасываем зум/позицию нового канваса
+        renderers[type].pz.reset();
+
         styleEngine.setRenderer(renderers[type].renderer, renderers[type].canvas);
     }
-
-    // --- Зум ---
-    document.getElementById('zoom-in').addEventListener('click', () => {
-        currentZoom = Math.min(currentZoom * 1.5, 20); // Максимум 20x
-        applyZoom();
-    });
-
-    document.getElementById('zoom-out').addEventListener('click', () => {
-        currentZoom = Math.max(currentZoom / 1.5, 0.5); // Минимум 0.5x
-        applyZoom();
-    });
-
-    document.getElementById('zoom-reset').addEventListener('click', () => {
-        currentZoom = 1;
-        applyZoom();
-    });
 
     // --- Палитра ---
     const paletteSelect = document.getElementById('palette-select');
@@ -159,6 +147,7 @@ try {
     fractalSelect.addEventListener('change', () => {
         state.fractalId = fractalSelect.value;
         
+        // Находим параметры для выбранного фрактала
         listFractals().then(list => {
             const f = list.find(x => x.id === state.fractalId);
             if (f) {
@@ -206,6 +195,12 @@ try {
             } else if (result.resultType === 'CellGrid') {
                 renderers['CellGrid'].renderer.setData(result.cells, result.rows, result.cols, result.states);
                 stats.size.textContent = `${result.cols}×${result.rows}`;
+            } else if (result.resultType === 'PointPath') {
+                renderers['PointPath'].renderer.setData(result.points);
+                stats.size.textContent = `${result.points.length} pts`;
+            } else if (result.resultType === 'Spectrum') {
+                renderers['Spectrum'].renderer.setData(result.density, result.width, result.height);
+                stats.size.textContent = `${result.width}×${result.height}`;
             }
 
             stats.compute.textContent = `${result.meta.computeMs} ms`;

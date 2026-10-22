@@ -20,12 +20,13 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
          "X-Fractal-Bounds", "X-Fractal-ComputeMs",
          "X-Fractal-ResultType", "X-Fractal-Encoding",
          "X-Fractal-UncompressedSize", "X-Fractal-Rows",
-         "X-Fractal-Cols", "X-Fractal-States")));
+         "X-Fractal-Cols", "X-Fractal-States", "X-Fractal-MaxLevel")));
 
-// --- Регистрация фракталов ---
+// --- Регистрация всех фракталов ---
 builder.Services.AddSingleton<IFractal, ThornFractal>();
 builder.Services.AddSingleton<IFractal, KuvinaFractal>();
-builder.Services.AddSingleton<IFractal, SelmiFractal>();
+builder.Services.AddSingleton<IFractal, KececiFractal>();
+builder.Services.AddSingleton<IFractal, HofstadterFractal>();
 
 builder.Services.AddSingleton<IFractalRegistry, FractalRegistry>();
 builder.Services.AddScoped<FractalService>();
@@ -48,12 +49,8 @@ app.UseStaticFiles(new StaticFileOptions
         }
     }
 });
-app.UseStaticFiles();
 app.UseCors();
 
-// =====================================================================
-// Схемы параметров для UI
-// =====================================================================
 var schemas = new Dictionary<string, object[]>
 {
     ["thorn"] = new object[]
@@ -70,15 +67,21 @@ var schemas = new Dictionary<string, object[]>
         new { name = "modulus", label = "Modulus", type = "int", min = 2, max = 16, defaultValue = 4 },
         new { name = "variation", label = "Variation", type = "select", options = new[] { "Normal", "Bi", "Shadow", "BiSkew", "ShadowSkew" }, defaultValue = "Normal" }
     },
-    ["selmi"] = new object[]
+    ["kececi"] = new object[]
     {
-        new { name = "generations", label = "Generations", type = "int", min = 10, max = 500, defaultValue = 80 }
+        new { name = "numChildren", label = "Children", type = "int", min = 2, max = 12, defaultValue = 5 },
+        new { name = "maxLevel", label = "Max Level", type = "int", min = 1, max = 7, defaultValue = 4 },
+        new { name = "growthMode", label = "Growth Mode", type = "select", options = new[] { "Outward", "Inward", "Tangent" }, defaultValue = "Outward" },
+        new { name = "shrink", label = "Shrink", type = "number", step = 0.05, min = 0.1, max = 0.9, defaultValue = 0.5 }
+    },
+    ["hofstadter"] = new object[]
+    {
+        new { name = "maxQ", label = "Max Denominator (q)", type = "int", min = 5, max = 100, defaultValue = 30 },
+        new { name = "width", label = "Width", type = "int", min = 200, max = 1600, defaultValue = 800 },
+        new { name = "height", label = "Height", type = "int", min = 200, max = 1200, defaultValue = 600 }
     }
 };
 
-// =====================================================================
-// GET /api/fractals — список с параметрами
-// =====================================================================
 app.MapGet("/api/fractals", (IFractalRegistry registry) =>
     registry.All.Select(f => new
     {
@@ -88,14 +91,8 @@ app.MapGet("/api/fractals", (IFractalRegistry registry) =>
         f.Metadata.ResultType,
         f.Metadata.IsHeavy,
         Parameters = schemas.GetValueOrDefault(f.Id, Array.Empty<object>())
-    }))
-    .WithName("ListFractals");
+    }));
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
-
-// =====================================================================
-// POST /api/fractals/{id}/compute — БИНАРНЫЙ (основной)
-// =====================================================================
 app.MapPost("/api/fractals/{id}/compute", async (
     string id,
     HttpRequest request,
@@ -104,11 +101,7 @@ app.MapPost("/api/fractals/{id}/compute", async (
     CancellationToken ct) =>
 {
     using var doc = await JsonDocument.ParseAsync(request.Body, cancellationToken: ct);
-    var fractalRequest = new FractalRequest
-    {
-        FractalId = id,
-        Parameters = doc.RootElement.Clone()
-    };
+    var fractalRequest = new FractalRequest { FractalId = id, Parameters = doc.RootElement.Clone() };
 
     FractalResult result;
     try
@@ -122,10 +115,35 @@ app.MapPost("/api/fractals/{id}/compute", async (
         return;
     }
 
+    // --- ОСОБЫЙ СЛУЧАЙ: Векторный путь (Кечеджи) ---
+    if (result is PointPathResult path)
+    {
+        response.StatusCode = 200;
+        response.ContentType = "application/json";
+        response.Headers["X-Fractal-ResultType"] = "PointPath";
+        response.Headers["X-Fractal-ComputeMs"] = result.ComputeTime.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture);
+        response.Headers["X-Fractal-MaxLevel"] = path.MaxLevel.ToString(CultureInfo.InvariantCulture);
+
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // ВАЖНО: чтобы x/y были строчными
+                NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
+            };
+            await JsonSerializer.SerializeAsync(response.Body, path.Points, options, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Игнорируем отмену запроса клиентом
+        }
+        return;
+    }
+
+    // --- БИНАРНЫЕ ДАННЫЕ (Тёрн, Кувина, Хофштадтер) ---
     byte[] rawBytes;
     string resultType;
 
-    // --- ВЕТВЛЕНИЕ ПО ТИПУ РЕЗУЛЬТАТА ---
     if (result is IterationMapResult im)
     {
         rawBytes = BinaryPacker.PackUInt16(im.Iterations);
@@ -144,6 +162,14 @@ app.MapPost("/api/fractals/{id}/compute", async (
         response.Headers["X-Fractal-Cols"] = cg.Cols.ToString(CultureInfo.InvariantCulture);
         response.Headers["X-Fractal-States"] = cg.States.ToString(CultureInfo.InvariantCulture);
     }
+    else if (result is SpectrumResult sp)
+    {
+        rawBytes = new byte[sp.Density.Length * 4]; // float = 4 байта
+        Buffer.BlockCopy(sp.Density, 0, rawBytes, 0, rawBytes.Length);
+        resultType = "Spectrum";
+        response.Headers["X-Fractal-Width"] = sp.Width.ToString(CultureInfo.InvariantCulture);
+        response.Headers["X-Fractal-Height"] = sp.Height.ToString(CultureInfo.InvariantCulture);
+    }
     else
     {
         response.StatusCode = 501;
@@ -161,14 +187,12 @@ app.MapPost("/api/fractals/{id}/compute", async (
 
     if (acceptsBrotli) response.Headers.ContentEncoding = "br";
 
-    response.Headers["Cache-Control"] = "no-store";
     response.Headers["X-Fractal-ResultType"] = resultType;
     response.Headers["X-Fractal-ComputeMs"] = result.ComputeTime.TotalMilliseconds.ToString("F0", CultureInfo.InvariantCulture);
     response.Headers["X-Fractal-Encoding"] = acceptsBrotli ? "br" : "identity";
     response.Headers["X-Fractal-UncompressedSize"] = rawBytes.Length.ToString(CultureInfo.InvariantCulture);
 
     await response.Body.WriteAsync(payload, ct);
-})
-    .WithName("ComputeFractalBinary");
+});
 
 app.Run();

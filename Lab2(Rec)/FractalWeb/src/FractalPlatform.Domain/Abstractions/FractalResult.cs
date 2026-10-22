@@ -23,3 +23,18 @@ public record CellGridResult : FractalResult
     public int States { get; init; }
     public byte[] Cells { get; init; } = [];
 }
+
+public record Point2D(float X, float Y);
+
+public record PointPathResult : FractalResult
+{
+    public Point2D[] Points { get; init; } = [];
+    public int MaxLevel { get; init; }
+}
+
+public record SpectrumResult : FractalResult
+{
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public float[] Density { get; init; } = []; // Нормализованная плотность от 0.0 до 1.0
+}
