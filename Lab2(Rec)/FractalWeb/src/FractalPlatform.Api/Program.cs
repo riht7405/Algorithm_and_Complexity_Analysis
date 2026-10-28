@@ -1,12 +1,13 @@
-using System.Globalization;
-using System.Text.Json;
 using FractalPlatform.Application.Caching;
 using FractalPlatform.Application.Registry;
 using FractalPlatform.Application.Services;
 using FractalPlatform.Domain.Abstractions;
+using FractalPlatform.Domain.Algorithms;
 using FractalPlatform.Domain.Fractals;
 using FractalPlatform.Infrastructure.Binary;
 using FractalPlatform.Infrastructure.Compression;
+using System.Globalization;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -193,6 +194,39 @@ app.MapPost("/api/fractals/{id}/compute", async (
     response.Headers["X-Fractal-UncompressedSize"] = rawBytes.Length.ToString(CultureInfo.InvariantCulture);
 
     await response.Body.WriteAsync(payload, ct);
+});
+
+app.MapGet("/api/algorithms/benchmark", (string algo, int n) =>
+{
+    var result = FractalPlatform.Domain.Algorithms.RecursiveAlgorithms.Benchmark(algo, n);
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/algorithms/benchmark-range", (string algo, int maxN) =>
+{
+    var results = new List<object>();
+
+    // Защита от слишком больших N, чтобы сервер не завис
+    int safeMaxN = Math.Min(maxN, algo == "tak" ? 12 : 20);
+
+    for (int n = 1; n <= safeMaxN; n++)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        long steps = 0;
+
+        try
+        {
+            if (algo == "hanoi") RecursiveAlgorithms.Reve(n, 'A', 'D', 'B', 'C', ref steps);
+            else if (algo == "tak") FractalPlatform.Domain.Algorithms.RecursiveAlgorithms.Tak(n * 2, n, 1, ref steps); // Чуть снизил нагрузку
+            else if (algo == "hofstadter") FractalPlatform.Domain.Algorithms.RecursiveAlgorithms.Hofstadter(n, ref steps);
+        }
+        catch { /* Игнорируем переполнение стека */ }
+
+        sw.Stop();
+        results.Add(new { n, timeMs = Math.Round(sw.Elapsed.TotalMilliseconds, 3), steps });
+    }
+
+    return Results.Ok(results);
 });
 
 app.Run();
