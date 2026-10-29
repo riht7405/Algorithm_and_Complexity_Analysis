@@ -66,7 +66,7 @@ export const RecursionAlgorithms = {
         return res;
     },
 
-    // Последовательность Хофштадтера (Q) - ИСПРАВЛЕНО
+    // Последовательность Хофштадтера (Q)
     hofstadter: function(n, depth, parentId, onCall, idCounter) {
         if (idCounter.val > 4000) return 0;
         const id = idCounter.val++;
@@ -82,10 +82,9 @@ export const RecursionAlgorithms = {
         onCall(id, parentId, nodeData, depth);
 
         if (n <= 0) return 0;
-        if (isBase) return 1; // Q(1)=1, Q(2)=1
+        if (isBase) return 1;
         if (depth > 8) return 1;
 
-        // Правильная формула: Q(n) = Q(n - Q(n-1)) + Q(n - Q(n-2))
         const q_n_minus_1 = this.hofstadter(n - 1, depth + 1, id, onCall, idCounter);
         const q_n_minus_2 = this.hofstadter(n - 2, depth + 1, id, onCall, idCounter);
         
@@ -94,6 +93,35 @@ export const RecursionAlgorithms = {
         
         const res = term1 + term2;
         
+        nodeData.result = `= ${res}`;
+        return res;
+    }, // <--- ВОТ ЗДЕСЬ БЫЛА ПРОПУЩЕНА ЗАПЯТАЯ
+
+    // Функция Аккермана (самая сложная рекурсия)
+    ackermann: function(m, n, depth, parentId, onCall, idCounter) {
+        if (idCounter.val > 4000) return 0;
+        const id = idCounter.val++;
+        
+        const nodeData = { 
+            title: `Ack(${m},${n})`, 
+            args: m === 0 ? `m=0` : (n === 0 ? `n=0` : ``), 
+            result: "", 
+            isBase: m === 0 
+        };
+        onCall(id, parentId, nodeData, depth);
+
+        let res = 0;
+        
+        if (m === 0) {
+            res = n + 1;
+        } else if (m > 0 && n === 0) {
+            res = this.ackermann(m - 1, 1, depth + 1, id, onCall, idCounter);
+        } else if (m > 0 && n > 0) {
+            // Вложенный вызов: A(m-1, A(m, n-1))
+            const inner = this.ackermann(m, n - 1, depth + 1, id, onCall, idCounter);
+            res = this.ackermann(m - 1, inner, depth + 1, id, onCall, idCounter);
+        }
+
         nodeData.result = `= ${res}`;
         return res;
     }

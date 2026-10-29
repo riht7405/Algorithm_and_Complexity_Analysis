@@ -219,6 +219,7 @@ app.MapGet("/api/algorithms/benchmark-range", (string algo, int maxN) =>
             if (algo == "hanoi") RecursiveAlgorithms.Reve(n, 'A', 'D', 'B', 'C', ref steps);
             else if (algo == "tak") FractalPlatform.Domain.Algorithms.RecursiveAlgorithms.Tak(n * 2, n, 1, ref steps); // Чуть снизил нагрузку
             else if (algo == "hofstadter") FractalPlatform.Domain.Algorithms.RecursiveAlgorithms.Hofstadter(n, ref steps);
+            else if (algo == "ackermann") RecursiveAlgorithms.Ackermann(Math.Min(n, 3), Math.Min(n, 4), ref steps);
         }
         catch { /* Игнорируем переполнение стека */ }
 

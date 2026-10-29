@@ -67,4 +67,12 @@ public static class RecursiveAlgorithms
         Hanoi(n - k, from, to, aux2, ref steps); // Используем старый метод Hanoi для 3 стержней
         Reve(k, aux1, to, from, aux2, ref steps);
     }
+
+    public static int Ackermann(int m, int n, ref long steps)
+    {
+        steps++;
+        if (m == 0) return n + 1;
+        if (m > 0 && n == 0) return Ackermann(m - 1, 1, ref steps);
+        return Ackermann(m - 1, Ackermann(m, n - 1, ref steps), ref steps);
+    }
 }

@@ -35,6 +35,12 @@ if (treeCanvas && chartCanvas) {
             Самореферентная числовая последовательность. Каждое следующее значение вычисляется на основе предыдущих результатов этой же последовательности. Ветвление рекурсии ограничено.<br><br>
             <b>Сложность:</b> Линейная, O(n).<br>
             <b>Применение:</b> Дискретная математика, теория хаоса, алгоритмы динамического программирования.
+        `,
+                ackermann: `
+            <b style="color: #a855f7;">Функция Аккермана</b><br>
+            Двумерная рекурсивная функция, которая растет быстрее, чем любая экспоненциальная. Названа в честь Вильгельма Аккермана.<br><br>
+            <b>Сложность:</b> Сверхэкспоненциальная.<br>
+            <b>Применение:</b> Теория сложности алгоритмов, теорема Геделя, анализ пределов рекурсии.
         `
     };
 
@@ -109,6 +115,9 @@ if (treeCanvas && chartCanvas) {
                 RecursionAlgorithms.tak(n, Math.floor(n / 2), 1, 0, null, onCall, idCounter);
             } else if (algo === 'hofstadter') {
                 RecursionAlgorithms.hofstadter(n, 0, null, onCall, idCounter);
+            } else if (algo === 'ackermann') {
+                // Для Аккермана берем небольшое m, чтобы браузер не завис
+                RecursionAlgorithms.ackermann(Math.min(n, 3), Math.min(n, 4), 0, null, onCall, idCounter);
             }
 
             renderer.render();
