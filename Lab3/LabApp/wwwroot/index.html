@@ -1,0 +1,110 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabApp — практическая 3</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>LabApp</h1>
+  <p class="muted">Структуры данных: стек, очередь, выражения, списки, дерево. Сравнение со стандартными коллекциями .NET.</p>
+  <nav class="tabs">
+    <button class="tab active" data-tab="stack">Stack</button>
+    <button class="tab" data-tab="queue">Queue</button>
+    <button class="tab" data-tab="expr">Expressions</button>
+    <button class="tab" data-tab="lists">Lists</button>
+    <button class="tab" data-tab="tree">Tree</button>
+    <button class="tab" data-tab="bench">Benchmarks</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Stack -->
+  <section id="panel-stack" class="panel active">
+    <h2>Стек</h2>
+    <p class="muted">Формат: <code>1,val</code> — push; <code>2</code> — pop; <code>3</code> — top; <code>4</code> — isEmpty; <code>5</code> — print.</p>
+    <textarea id="stack-input" rows="3">3 4 1,56 1,7 1,cat 2 5 4</textarea>
+    <button id="stack-run">Выполнить</button>
+    <div id="stack-output" class="output"></div>
+  </section>
+
+  <!-- Queue -->
+  <section id="panel-queue" class="panel">
+    <h2>Очередь</h2>
+    <p class="muted">Те же команды: 1 — enqueue, 2 — dequeue, 3 — peek, 4 — isEmpty, 5 — print.</p>
+    <textarea id="queue-input" rows="3">1,56 1,7 1,cat 3 2 5 4</textarea>
+    <button id="queue-run">Выполнить</button>
+    <div id="queue-output" class="output"></div>
+  </section>
+
+  <!-- Expressions -->
+  <section id="panel-expr" class="panel">
+    <h2>Выражения</h2>
+    <h3>Постфиксное</h3>
+    <input id="postfix-input" type="text" value="7 8 + 3 2 + /">
+    <button id="postfix-eval">Вычислить</button>
+    <div id="postfix-output" class="output"></div>
+
+    <h3>Инфикс → постфикс</h3>
+    <input id="infix-input" type="text" value="(7+8)/(3+2)">
+    <button id="infix-convert">Перевести</button>
+    <div id="infix-output" class="output"></div>
+  </section>
+
+  <!-- Lists -->
+  <section id="panel-lists" class="panel">
+    <h2>Связный список</h2>
+    <label>Элементы (через запятую): <input id="list-items" type="text" value="3, 1, 4, 1, 5, 9, 2, 6"></label>
+    <label>Операция:
+      <select id="list-op">
+        <option value="reverse">reverse</option>
+        <option value="moveLastToFront">moveLastToFront</option>
+        <option value="moveFirstToEnd">moveFirstToEnd</option>
+        <option value="countDistinct">countDistinct</option>
+        <option value="removeNonUnique">removeNonUnique</option>
+        <option value="insertSelfAfterX">insertSelfAfterX</option>
+        <option value="sortedInsert">sortedInsert</option>
+        <option value="removeAll">removeAll</option>
+        <option value="insertBefore">insertBefore</option>
+        <option value="append">append</option>
+        <option value="splitByValue">splitByValue</option>
+        <option value="double">double</option>
+        <option value="swap">swap</option>
+      </select>
+    </label>
+    <div id="list-args"></div>
+    <button id="list-run">Применить</button>
+    <div id="list-output" class="output"></div>
+  </section>
+
+  <!-- Tree -->
+  <section id="panel-tree" class="panel">
+    <h2>Дерево из префиксной записи</h2>
+    <p class="muted">Маркер null — <code>*</code>. Пример: <code>ABD*G***CE**FH**J**</code></p>
+    <input id="tree-input" type="text" value="ABD*G***CE**FH**J**">
+    <button id="tree-run">Построить</button>
+    <div id="tree-output" class="output"></div>
+  </section>
+
+  <!-- Benchmarks -->
+  <section id="panel-bench" class="panel">
+    <h2>Сравнение со стандартными структурами</h2>
+    <label>Размеры входа (через запятую): <input id="bench-sizes" type="text" value="100,1000,10000,100000"></label>
+    <div class="row">
+      <button id="bench-stack">Стек: своя vs стандартная</button>
+      <button id="bench-queue">Очередь: своя vs стандартная</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="bench-chart"></canvas>
+    </div>
+    <div id="bench-table" class="output"></div>
+    <p class="muted small">Оси логарифмические. Красная — своя структура, синяя — стандартная. Ratio = своя / стандартная.</p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

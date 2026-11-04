@@ -1,0 +1,11 @@
+﻿bin/
+obj/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+[Tt]est[Rr]esults/
