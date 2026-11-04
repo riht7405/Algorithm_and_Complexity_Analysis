@@ -1,0 +1,300 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabApp — справка по структурам</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>Справка по структурам</h1>
+  <p class="muted">Реализации, которые используются в приложении. Код — из <code>LabApp/Core/</code>.</p>
+  <div class="tabs-row">
+    <nav class="tabs">
+      <a class="tab" href="index.html" style="text-decoration:none;">← К приложению</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="docs-layout">
+  <aside class="docs-toc">
+    <h3>Содержание</h3>
+    <ul>
+      <li><a href="#list">Связный список</a></li>
+      <li><a href="#stack">Стек</a></li>
+      <li><a href="#queue">Очередь</a></li>
+    </ul>
+    <h3 style="margin-top:1.5rem;">Что смотреть</h3>
+    <p class="muted small">
+      Свои структуры построены на одном примитиве — односвязном списке.
+      Стек и очередь — тонкие адаптеры над ним, плюс адаптеры над стандартными
+      коллекциями .NET для сравнения в разделе Benchmarks.
+    </p>
+  </aside>
+
+  <article class="docs-content">
+
+    <!-- ============ СВЯЗНЫЙ СПИСОК ============ -->
+    <section id="list">
+      <h2>Связный список</h2>
+      <p>
+        Односвязный список с указателями на первый и последний узел.
+        Хранит счётчик элементов, поэтому <code>Count</code> за O(1).
+        Указатель на хвост (<code>Tail</code>) даёт O(1) на добавление в конец.
+        Удаления из конца O(n) — обратного указателя нет.
+      </p>
+
+      <h3>Узел списка</h3>
+      <pre class="code-block"><code>namespace LabApp.Core;
+
+public sealed class ListNode&lt;T&gt;
+{
+    public T Value { get; set; }
+    public ListNode&lt;T&gt;? Next { get; set; }
+    public ListNode(T value) =&gt; Value = value;
+}</code></pre>
+
+      <h3>Класс SinglyLinkedList</h3>
+      <pre class="code-block"><code>namespace LabApp.Core;
+
+public sealed class SinglyLinkedList&lt;T&gt;
+{
+    public ListNode&lt;T&gt;? Head { get; private set; }
+    public ListNode&lt;T&gt;? Tail { get; private set; }
+    public int Count { get; private set; }
+    public bool IsEmpty =&gt; Head is null;
+
+    public void AddFirst(T value)
+    {
+        var node = new ListNode&lt;T&gt;(value) { Next = Head };
+        Head = node;
+        Tail ??= node;
+        Count++;
+    }
+
+    public void AddLast(T value)
+    {
+        var node = new ListNode&lt;T&gt;(value);
+        if (Tail is null) { Head = Tail = node; }
+        else { Tail.Next = node; Tail = node; }
+        Count++;
+    }
+
+    public T RemoveFirst()
+    {
+        if (Head is null) throw new InvalidOperationException(&quot;Список пуст&quot;);
+        var v = Head.Value;
+        Head = Head.Next;
+        if (Head is null) Tail = null;
+        Count--;
+        return v;
+    }
+
+    public T RemoveLast()
+    {
+        if (Head is null) throw new InvalidOperationException(&quot;Список пуст&quot;);
+        if (Head == Tail) { var v0 = Head.Value; Head = Tail = null; Count--; return v0; }
+        var cur = Head;
+        while (cur!.Next != Tail) cur = cur.Next;
+        var v = Tail!.Value;
+        cur.Next = null;
+        Tail = cur;
+        Count--;
+        return v;
+    }
+
+    public void SetHeadOnly(ListNode&lt;T&gt;? head) =&gt; Head = head;
+
+    public void RecomputeTailAndCount()
+    {
+        Tail = null;
+        int c = 0;
+        for (var cur = Head; cur is not null; cur = cur.Next) { Tail = cur; c++; }
+        Count = c;
+    }
+
+    public IEnumerable&lt;T&gt; Items
+    {
+        get
+        {
+            for (var cur = Head; cur is not null; cur = cur.Next) yield return cur.Value;
+        }
+    }
+
+    public SinglyLinkedList&lt;T&gt; Clone()
+    {
+        var copy = new SinglyLinkedList&lt;T&gt;();
+        foreach (var v in Items) copy.AddLast(v);
+        return copy;
+    }
+
+    public override string ToString() =&gt; &quot;[&quot; + string.Join(&quot;, &quot;, Items) + &quot;]&quot;;
+}</code></pre>
+
+      <h3>Сложность операций</h3>
+      <table class="complexity">
+        <thead><tr><th>Операция</th><th>Сложность</th><th>Комментарий</th></tr></thead>
+        <tbody>
+          <tr><td>AddFirst</td><td>O(1)</td><td>перекидываем <code>Head</code></td></tr>
+          <tr><td>AddLast</td><td>O(1)</td><td>благодаря <code>Tail</code></td></tr>
+          <tr><td>RemoveFirst</td><td>O(1)</td><td></td></tr>
+          <tr><td>RemoveLast</td><td>O(n)</td><td>нужно дойти до предпоследнего</td></tr>
+          <tr><td>Items</td><td>O(n)</td><td>итератор</td></tr>
+          <tr><td>Clone</td><td>O(n)</td><td>копия всех узлов</td></tr>
+        </tbody>
+      </table>
+
+      <p class="muted small">
+        Все 12 алгоритмов (reverse, swap, split, ...) живут в
+        <code>LinkedListAlgorithms.cs</code> и работают поверх этого класса.
+      </p>
+    </section>
+
+    <!-- ============ СТЕК ============ -->
+    <section id="stack">
+      <h2>Стек</h2>
+      <p>
+        Интерфейс <code>IStack&lt;T&gt;</code> — контракт для обеих реализаций.
+        <code>LinkedListStack&lt;T&gt;</code> использует наш односвязный список:
+        <code>Push</code> = <code>AddFirst</code>, <code>Pop</code> = <code>RemoveFirst</code>.
+        <code>StandardStackAdapter&lt;T&gt;</code> оборачивает <code>System.Collections.Generic.Stack&lt;T&gt;</code>
+        и нужен, чтобы в разделе Benchmarks обе реализации шли через один и тот же интерфейс.
+      </p>
+
+      <h3>Интерфейс и реализации</h3>
+      <pre class="code-block"><code>namespace LabApp.Core;
+
+public interface IStack&lt;T&gt;
+{
+    int Count { get; }
+    void Push(T value);
+    T Pop();
+    T Top();
+    bool IsEmpty();
+    IReadOnlyList&lt;T&gt; Print();
+}
+
+public sealed class LinkedListStack&lt;T&gt; : IStack&lt;T&gt;
+{
+    private readonly SinglyLinkedList&lt;T&gt; _inner = new();
+    public int Count =&gt; _inner.Count;
+    public void Push(T value) =&gt; _inner.AddFirst(value);
+    public T Pop() =&gt; _inner.RemoveFirst();
+    public T Top()
+    {
+        var head = _inner.Head;
+        if (head is null) throw new InvalidOperationException(&quot;Стек пуст&quot;);
+        return head.Value;
+    }
+    public bool IsEmpty() =&gt; _inner.IsEmpty;
+    public IReadOnlyList&lt;T&gt; Print() =&gt; _inner.Items.ToList();
+}
+
+public sealed class StandardStackAdapter&lt;T&gt; : IStack&lt;T&gt;
+{
+    private readonly System.Collections.Generic.Stack&lt;T&gt; _inner = new();
+    public int Count =&gt; _inner.Count;
+    public void Push(T value) =&gt; _inner.Push(value);
+    public T Pop() =&gt; _inner.Pop();
+    public T Top() =&gt; _inner.Peek();
+    public bool IsEmpty() =&gt; _inner.Count == 0;
+    public IReadOnlyList&lt;T&gt; Print() =&gt; _inner.ToList();
+}</code></pre>
+
+      <h3>Сложность операций</h3>
+      <table class="complexity">
+        <thead><tr><th>Операция</th><th>Сложность</th></tr></thead>
+        <tbody>
+          <tr><td>Push</td><td>O(1)</td></tr>
+          <tr><td>Pop</td><td>O(1)</td></tr>
+          <tr><td>Top</td><td>O(1)</td></tr>
+          <tr><td>IsEmpty</td><td>O(1)</td></tr>
+          <tr><td>Print</td><td>O(n)</td></tr>
+        </tbody>
+      </table>
+
+      <p class="muted small">
+        Почему обе реализации идут через <code>IStack&lt;T&gt;</code> в бенчмарках:
+        так интерфейсная диспетчеризация одинакова, и разница во времени отражает
+        именно разницу структур, а не разницу API. См. ADR-0005.
+      </p>
+    </section>
+
+    <!-- ============ ОЧЕРЕДЬ ============ -->
+    <section id="queue">
+      <h2>Очередь</h2>
+      <p>
+        Интерфейс <code>IQueue&lt;T&gt;</code>, две реализации по той же схеме.
+        <code>ListQueue&lt;T&gt;</code> использует наш список:
+        <code>Enqueue</code> = <code>AddLast</code>, <code>Dequeue</code> = <code>RemoveFirst</code>.
+        Оба O(1), потому что список хранит и <code>Head</code>, и <code>Tail</code>.
+        <code>StandardQueueAdapter&lt;T&gt;</code> оборачивает
+        <code>System.Collections.Generic.Queue&lt;T&gt;</code> (ring buffer внутри).
+      </p>
+
+      <h3>Интерфейс и реализации</h3>
+      <pre class="code-block"><code>namespace LabApp.Core;
+
+public interface IQueue&lt;T&gt;
+{
+    int Count { get; }
+    void Enqueue(T value);
+    T Dequeue();
+    T Peek();
+    bool IsEmpty();
+    IReadOnlyList&lt;T&gt; Print();
+}
+
+public sealed class ListQueue&lt;T&gt; : IQueue&lt;T&gt;
+{
+    private readonly SinglyLinkedList&lt;T&gt; _inner = new();
+    public int Count =&gt; _inner.Count;
+    public void Enqueue(T value) =&gt; _inner.AddLast(value);
+    public T Dequeue() =&gt; _inner.RemoveFirst();
+    public T Peek()
+    {
+        var head = _inner.Head;
+        if (head is null) throw new InvalidOperationException(&quot;Очередь пуста&quot;);
+        return head.Value;
+    }
+    public bool IsEmpty() =&gt; _inner.IsEmpty;
+    public IReadOnlyList&lt;T&gt; Print() =&gt; _inner.Items.ToList();
+}
+
+public sealed class StandardQueueAdapter&lt;T&gt; : IQueue&lt;T&gt;
+{
+    private readonly System.Collections.Generic.Queue&lt;T&gt; _inner = new();
+    public int Count =&gt; _inner.Count;
+    public void Enqueue(T value) =&gt; _inner.Enqueue(value);
+    public T Dequeue() =&gt; _inner.Dequeue();
+    public T Peek() =&gt; _inner.Peek();
+    public bool IsEmpty() =&gt; _inner.Count == 0;
+    public IReadOnlyList&lt;T&gt; Print() =&gt; _inner.ToList();
+}</code></pre>
+
+      <h3>Сложность операций</h3>
+      <table class="complexity">
+        <thead><tr><th>Операция</th><th>Сложность</th></tr></thead>
+        <tbody>
+          <tr><td>Enqueue</td><td>O(1)</td></tr>
+          <tr><td>Dequeue</td><td>O(1)</td></tr>
+          <tr><td>Peek</td><td>O(1)</td></tr>
+          <tr><td>IsEmpty</td><td>O(1)</td></tr>
+          <tr><td>Print</td><td>O(n)</td></tr>
+        </tbody>
+      </table>
+
+      <p class="muted small">
+        Разница со стандартной очередью на графике Benchmarks объясняется
+        cache locality (у стандартной — непрерывный массив) и аллокацией узла
+        на каждый элемент у нас.
+      </p>
+    </section>
+
+  </article>
+</div>
+</main>
+</body>
+</html>

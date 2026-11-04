@@ -11,14 +11,20 @@
 <header>
   <h1>LabApp</h1>
   <p class="muted">Структуры данных: стек, очередь, выражения, списки, дерево. Сравнение со стандартными коллекциями .NET.</p>
-  <nav class="tabs">
-    <button class="tab active" data-tab="stack">Stack</button>
-    <button class="tab" data-tab="queue">Queue</button>
-    <button class="tab" data-tab="expr">Expressions</button>
-    <button class="tab" data-tab="lists">Lists</button>
-    <button class="tab" data-tab="tree">Tree</button>
-    <button class="tab" data-tab="bench">Benchmarks</button>
-  </nav>
+  <div class="tabs-row">
+    <nav class="tabs">
+      <button class="tab active" data-tab="stack">Stack</button>
+      <button class="tab" data-tab="queue">Queue</button>
+      <button class="tab" data-tab="expr">Expressions</button>
+      <button class="tab" data-tab="lists">Lists</button>
+      <button class="tab" data-tab="tree">Tree</button>
+      <button class="tab" data-tab="bench">Benchmarks</button>
+    </nav>
+    <div style="display:flex; gap:1.25rem; padding-bottom:0.6rem;">
+      <a class="docs-link" href="apply.html">Применения →</a>
+      <a class="docs-link" href="docs.html">Справка →</a>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -56,27 +62,30 @@
 
   <!-- Lists -->
   <section id="panel-lists" class="panel">
-    <h2>Связный список</h2>
+    <h2>Связный список: 12 алгоритмов</h2>
     <label>Элементы (через запятую): <input id="list-items" type="text" value="3, 1, 4, 1, 5, 9, 2, 6"></label>
     <label>Операция:
       <select id="list-op">
-        <option value="reverse">reverse</option>
-        <option value="moveLastToFront">moveLastToFront</option>
-        <option value="moveFirstToEnd">moveFirstToEnd</option>
-        <option value="countDistinct">countDistinct</option>
-        <option value="removeNonUnique">removeNonUnique</option>
-        <option value="insertSelfAfterX">insertSelfAfterX</option>
-        <option value="sortedInsert">sortedInsert</option>
-        <option value="removeAll">removeAll</option>
-        <option value="insertBefore">insertBefore</option>
-        <option value="append">append</option>
-        <option value="splitByValue">splitByValue</option>
-        <option value="double">double</option>
-        <option value="swap">swap</option>
+        <option value="reverse">reverse — перевернуть список</option>
+        <option value="moveLastToFront">moveLastToFront — последний в начало</option>
+        <option value="moveFirstToEnd">moveFirstToEnd — первый в конец</option>
+        <option value="countDistinct">countDistinct — количество различных</option>
+        <option value="removeNonUnique">removeNonUnique — удалить неуникальные</option>
+        <option value="insertSelfAfterX">insertSelfAfterX — вставить себя после x</option>
+        <option value="sortedInsert">sortedInsert — вставить в упорядоченный</option>
+        <option value="removeAll">removeAll — удалить все E</option>
+        <option value="insertBefore">insertBefore — вставить F перед E</option>
+        <option value="append">append — дописать список</option>
+        <option value="splitByValue">splitByValue — разбить по x</option>
+        <option value="double">double — удвоить список</option>
+        <option value="swap">swap — поменять местами</option>
       </select>
     </label>
     <div id="list-args"></div>
     <button id="list-run">Применить</button>
+
+    <div id="list-desc" class="task-desc"></div>
+
     <div id="list-output" class="output"></div>
   </section>
 
@@ -92,7 +101,10 @@
   <!-- Benchmarks -->
   <section id="panel-bench" class="panel">
     <h2>Сравнение со стандартными структурами</h2>
-    <label>Размеры входа (через запятую): <input id="bench-sizes" type="text" value="100,1000,10000,100000"></label>
+    <div class="row">
+  <label>Максимальный N: <input id="bench-max" type="number" value="100000" style="min-width:120px"></label>
+  <label>Шаг: <input id="bench-step" type="number" value="2500" style="min-width:100px"></label>
+</div>
     <div class="row">
       <button id="bench-stack">Стек: своя vs стандартная</button>
       <button id="bench-queue">Очередь: своя vs стандартная</button>
@@ -101,8 +113,10 @@
       <canvas id="bench-chart"></canvas>
     </div>
     <div id="bench-table" class="output"></div>
-    <p class="muted small">Оси логарифмические. Красная — своя структура, синяя — стандартная. Ratio = своя / стандартная.</p>
+    <p class="muted small">Обе линии — реальные замеры. Точки — своя структура (на связном списке), линия — стандартная .NET. Ratio = своя / стандартная. Оси линейные, шаг по N регулируется полями сверху.</p>
   </section>
+
+
 </main>
 
 <script src="app.js"></script>

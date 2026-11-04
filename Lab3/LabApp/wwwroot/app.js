@@ -104,6 +104,83 @@ document.getElementById("infix-convert").addEventListener("click", async () => {
 });
 
 // ---------- lists ----------
+const LIST_TASKS = {
+  reverse: {
+    title: "1. Перевернуть список",
+    condition: "Дан односвязный список L. Нужно изменить ссылки так, чтобы элементы шли в обратном порядке.",
+    logic: "Идём по списку, сохраняя предыдущий узел (prev). На каждом шаге меняем указатель next текущего узла на prev. После прохода prev становится новой головой. Время O(n), память O(1)."
+  },
+  moveLastToFront: {
+    title: "2. Перенести последний элемент в начало",
+    condition: "Непустой список L. Перенести его последний элемент в начало.",
+    logic: "Находим последний узел (RemoveLast), сохраняем значение, затем AddFirst. Если список пуст или один элемент — ничего не делаем. Время O(n) из-за поиска конца, память O(1)."
+  },
+  moveFirstToEnd: {
+    title: "3. Перенести первый элемент в конец",
+    condition: "Непустой список L. Перенести его первый элемент в конец.",
+    logic: "RemoveFirst забирает голову, AddLast кладёт её в хвост. Обе операции O(1), потому что список хранит и Head, и Tail. Итого O(1)."
+  },
+  countDistinct: {
+    title: "4. Количество различных элементов",
+    condition: "Список L целых чисел. Найти число уникальных значений.",
+    logic: "Проходим по списку, складывая значения в HashSet (или группируя). Возвращаем размер множества. Время O(n), память O(k), где k — число уникальных."
+  },
+  removeNonUnique: {
+    title: "5. Удалить неуникальные элементы",
+    condition: "Список L. Оставить только те элементы, которые встречаются ровно один раз.",
+    logic: "Проходим список, считаем частоты (Dictionary). Вторым проходом удаляем все узлы, чья частота > 1. Время O(n), память O(k)."
+  },
+  insertSelfAfterX: {
+    title: "6. Вставить список сам в себя после первого вхождения x",
+    condition: "Список L и число x. После первого узла со значением x вставить копию всего списка.",
+    logic: "Находим узел с x. Сохраняем снимок значений списка. Идём по снимку, создавая новые узлы, и вставляем их после найденного узла, сохраняя остаток списка. Время O(n + k), где k — длина списка на момент вставки."
+  },
+  sortedInsert: {
+    title: "7. Вставить в упорядоченный список",
+    condition: "Список L упорядочен по неубыванию. Вставить элемент E так, чтобы порядок сохранился.",
+    logic: "Идём по списку, пока следующий элемент меньше E. Вставляем новый узел между текущим и следующим. Особые случаи: пустой список (AddFirst) и E меньше головы (AddFirst). Время O(n)."
+  },
+  removeAll: {
+    title: "8. Удалить все элементы E",
+    condition: "Список L и число E. Удалить все вхождения E.",
+    logic: "Удаляем голову, пока она равна E. Затем идём по списку и пропускаем узлы, у которых next.Value == E, перепривязывая next. Время O(n), память O(1)."
+  },
+  insertBefore: {
+    title: "9. Вставить F перед первым вхождением E",
+    condition: "Список L, числа E и F. Если E есть в списке, вставить F перед первым E.",
+    logic: "Если голова — E, AddFirst(F). Иначе идём, пока next.Value != E, и вставляем узел F после текущего (то есть перед следующим). Если E нет — ничего не делаем. Время O(n)."
+  },
+  append: {
+    title: "10. Дописать список E к списку L",
+    condition: "Два списка L и E целых чисел. Дописать E в конец L.",
+    logic: "Копируем элементы E в конец L (AddLast для каждого). Оба списка не разрушаются. Время O(n + m)."
+  },
+  splitByValue: {
+    title: "11. Разбить по первому вхождению x",
+    condition: "Список L и число x. Разбить список на два: левый — до первого x, правый — начиная с x. Если x нет — правый пуст.",
+    logic: "Идём по списку, складывая значения в left. Как только встретили x, флаг found = true, остальные значения — в right. Время O(n), память O(n)."
+  },
+  double: {
+    title: "12. Удвоить список",
+    condition: "Список L. Приписать в конец копию самого себя.",
+    logic: "Сохраняем снимок значений списка (ToArray). Затем для каждого значения из снимка AddLast. Время O(n), память O(n)."
+  },
+  swap: {
+    title: "13. Поменять местами два элемента",
+    condition: "Список L и два значения a и b. Поменять местами узлы, содержащие a и b.",
+    logic: "Ищем узлы a и b и их предшественников (prevA, prevB). Если оба найдены — переставляем указатели. Отдельно обрабатываем случаи: a и b соседние, a или b — голова. Время O(n), память O(1)."
+  }
+};
+
+function renderTaskDesc(op) {
+  const task = LIST_TASKS[op];
+  const box = document.getElementById("list-desc");
+  if (!task) { box.innerHTML = ""; return; }
+  box.innerHTML =
+    '<h4>' + esc(task.title) + '</h4>' +
+    '<p><strong>Условие:</strong> ' + esc(task.condition) + '</p>' +
+    '<p><strong>Логика решения:</strong> ' + esc(task.logic) + '</p>';
+}
 const LIST_SPECS = {
   reverse: {},
   moveLastToFront: {},
@@ -129,6 +206,7 @@ function updateListForm() {
   if (spec.arg2) html += "<label>" + spec.arg2 + ": <input id=\"list-arg2\" type=\"number\" value=\"5\"></label>";
   if (spec.secondList) html += "<label>secondList (через запятую): <input id=\"list-second\" type=\"text\" value=\"10, 20, 30\"></label>";
   form.innerHTML = html;
+  renderTaskDesc(op);
 }
 
 document.getElementById("list-op").addEventListener("change", updateListForm);
@@ -229,12 +307,15 @@ function renderTree(root) {
 let benchChart = null;
 
 async function runBench(kind) {
-  const sizes = document.getElementById("bench-sizes").value;
+  const max = document.getElementById("bench-max").value;
+  const step = document.getElementById("bench-step").value;
+  const out = document.getElementById("bench-table");
+  out.textContent = "Считаем (это может занять до 10 секунд)...";
   try {
-    const r = await get("/benchmarks/" + kind + "?sizes=" + encodeURIComponent(sizes));
+    const r = await get("/benchmarks/" + kind + "?max=" + max + "&step=" + step);
     renderChart(r);
   } catch (e) {
-    document.getElementById("bench-table").textContent = "Ошибка: " + e;
+    out.textContent = "Ошибка: " + e;
   }
 }
 
@@ -242,54 +323,77 @@ function renderChart(r) {
   const ctx = document.getElementById("bench-chart").getContext("2d");
   if (benchChart) benchChart.destroy();
 
-  const customPoints = r.points.map(p => ({ x: p.size, y: p.customMs }));
-  const standardPoints = r.points.map(p => ({ x: p.size, y: p.standardMs }));
+  const customData = r.points.map(p => ({ x: p.size, y: p.customMs }));
+  const standardData = r.points.map(p => ({ x: p.size, y: p.standardMs }));
+
+  // Опция для 1:1 или квадратного аспекта (по желанию можно поменять 1.5 на 1)
+  const aspect = 1.6;
 
   benchChart = new Chart(ctx, {
-    type: "line",
+    type: "scatter", // base type
     data: {
       datasets: [
         {
           label: "Своя структура",
-          data: customPoints,
-          borderColor: "#dc2626",
-          backgroundColor: "rgba(220, 38, 38, 0.15)",
-          tension: 0.2,
-          pointRadius: 4
+          data: customData,
+          borderColor: "rgba(0, 188, 212, 0.8)",
+          backgroundColor: "rgba(0, 188, 212, 0.8)",
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          showLine: false,
+          order: 1
         },
         {
           label: "Стандартная .NET",
-          data: standardPoints,
-          borderColor: "#2563eb",
-          backgroundColor: "rgba(37, 99, 235, 0.15)",
-          tension: 0.2,
-          pointRadius: 4
+          data: standardData,
+          borderColor: "#ff9800",
+          backgroundColor: "#ff9800",
+          pointRadius: 0,
+          borderWidth: 2,
+          showLine: true,
+          tension: 0,
+          order: 0
         }
       ]
     },
     options: {
-      parsing: false,
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: true,
+      aspectRatio: aspect,
       interaction: { mode: "nearest", intersect: false },
       scales: {
         x: {
-          type: "logarithmic",
-          title: { display: true, text: "Размер входа (N)" }
+          type: "linear",
+          beginAtZero: true,
+          title: { display: true, text: "Размер входных данных (N)" },
+          grid: { color: "#e5e7eb", drawBorder: false },
+          ticks: { callback: (v) => v.toLocaleString() }
         },
         y: {
-          type: "logarithmic",
-          title: { display: true, text: "Время, мс" }
+          type: "linear",
+          beginAtZero: true,
+          title: { display: true, text: "Время (мс)" },
+          grid: { color: "#e5e7eb", drawBorder: false },
+          ticks: { callback: (v) => v.toFixed(2) }
         }
       },
       plugins: {
-        legend: { position: "top" },
+        legend: {
+          position: "bottom",
+          align: "end",
+          labels: {
+            usePointStyle: true,
+            boxWidth: 10,
+            padding: 20
+          }
+        },
         tooltip: {
           callbacks: {
-            title: ctxs => "N = " + ctxs[0].parsed.x,
-            afterBody: ctxs => {
+            title: (ctxs) => "N = " + ctxs[0].parsed.x.toLocaleString(),
+            afterBody: (ctxs) => {
               const i = ctxs[0].dataIndex;
               const p = r.points[i];
+              if (!p) return "";
               return "Ratio (своя / станд.): " + p.ratio.toFixed(2) + "x";
             }
           }
@@ -299,10 +403,10 @@ function renderChart(r) {
   });
 
   const rows = r.points.map(p =>
-    "<tr><td>" + p.size + "</td><td>" + p.customMs.toFixed(4) + "</td><td>" +
+    "<tr><td>" + p.size.toLocaleString() + "</td><td>" + p.customMs.toFixed(4) + "</td><td>" +
     p.standardMs.toFixed(4) + "</td><td>" + p.ratio.toFixed(2) + "</td></tr>"
   ).join("");
-  document.getElementById("bench-table").innerHTML =
+  out.innerHTML =
     "<div class=\"timing\">" + esc(r.structure) + " · " + esc(r.operation) + "</div>" +
     "<table class=\"trace\"><thead><tr><th>N</th><th>Своя, мс</th><th>Стандартная, мс</th><th>Ratio</th></tr></thead><tbody>" + rows + "</tbody></table>";
 }

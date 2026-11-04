@@ -1,0 +1,165 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabApp — применения структур</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>Применения структур данных</h1>
+  <p class="muted">Реальные задачи из индустрии с интерактивными демонстрациями</p>
+  <div class="tabs-row">
+    <nav class="tabs">
+      <a class="tab" href="index.html" style="text-decoration:none;">← К приложению</a>
+    </nav>
+    <div style="display:flex; gap:1.25rem; padding-bottom:0.6rem;">
+      <a class="docs-link" href="docs.html">Справка по реализациям →</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<nav class="apply-nav">
+  <a href="#stack">Стек</a>
+  <a href="#list">Список</a>
+  <a href="#queue">Очередь</a>
+  <a href="#tree">Дерево</a>
+</nav>
+
+<!-- ============ STACK ============ -->
+<section id="stack" class="apply-section">
+  <h2>Стек: Killer Heuristic в шахматных движках</h2>
+  <div class="apply-grid">
+    <div class="apply-text">
+      <h3>Условие</h3>
+      <p>Шахматный движок перебирает миллионы позиций. Нужно быстро находить ходы, которые с наибольшей вероятностью приведут к отсечению (beta-cutoff), чтобы не перебирать заведомо бесполезные ветки и сэкономить время.</p>
+      <h3>Логика</h3>
+      <p>Применяется <i>Killer Heuristic</i>. Используется стек, где каждый уровень — это глубина поиска (ply). В каждом узле стека хранятся 1–2 «тихих» хода, которые ранее уже приводили к отсечению на этой же глубине. Поиск рекурсивный: заходим вглубь — кладём новый уровень, выходим — снимаем. Стек естественно ложится на эту структуру вызовов.</p>
+      <h3>Где используется</h3>
+      <p>Stockfish, Crafty, Houdini, Komodo. В современных движках killer heuristic частично вытеснен NNUE и history heuristic, но остаётся каноническим примером «стек как состояние алгоритма».</p>
+      <h3>Сложность</h3>
+      <p>Push/pop на стек — <code>O(1)</code>. Обновление killers — <code>O(1)</code> на отсечение. Экономия от pruning — до 50% узлов на средней позиции.</p>
+    </div>
+    <div class="apply-demo">
+      <h3>Демо: стек killers</h3>
+      <p class="muted small">Каждый уровень — глубина поиска. В двух ячейках хранятся ходы-убийцы.</p>
+      <div id="stack-visual" class="stack-visual"></div>
+      <div class="demo-controls">
+        <button id="stack-cutoff">Симулировать отсечение</button>
+        <button id="stack-reset" class="secondary">Сброс</button>
+      </div>
+      <div id="stack-log" class="demo-log">Нажми «Симулировать отсечение»</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIST ============ -->
+<section id="list" class="apply-section">
+  <h2>Список: Dancing Links для Судоку 4×4</h2>
+  <div class="apply-grid">
+    <div class="apply-text">
+      <h3>Условие</h3>
+      <p>Дана задача точного покрытия (Exact Cover) — Судоку 4×4. Нужно перебирать варианты с откатом за минимальное время, чтобы не тратить часы на перебор.</p>
+      <h3>Логика</h3>
+      <p>Алгоритм X Дональда Кнута с представлением матрицы ограничений через <i>Dancing Links</i>. Каждый узел — двусвязный по горизонтали и вертикали. Когда алгоритм делает ход, он «вырезает» выбранный узел и все конфликтующие с ним. Тупик — узлы «вставляются» обратно (откат). Откат за <code>O(1)</code> — вот в чём сила структуры.</p>
+      <h3>Где используется</h3>
+      <p>Судоку, задача N ферзей, замощение полимино, точное покрытие в SAT-солверах. Сам Кнут называл это «танцующими ссылками» за визуальную элегантность.</p>
+      <h3>Сложность</h3>
+      <p>Обход: <code>O(rows × cols)</code>. Откат: <code>O(1)</code> за счёт сохранённых ссылок. Память: <code>O(n²)</code> узлов для матрицы n×n.</p>
+    </div>
+    <div class="apply-demo">
+      <h3>Демо: Судоку 4×4</h3>
+      <p class="muted small">Жёлтые — исходные числа. Зелёные — поставленные. Красные — пробные.</p>
+      <div id="sudoku-grid" class="sudoku-grid"></div>
+      <div class="demo-controls">
+        <button id="sudoku-step">Один шаг</button>
+        <button id="sudoku-solve">Решить всё</button>
+        <button id="sudoku-reset" class="secondary">Сброс</button>
+      </div>
+      <div class="demo-stats">
+        <span>Итераций: <b id="sudoku-iter">0</b></span>
+        <span>Откатов: <b id="sudoku-back">0</b></span>
+      </div>
+      <div id="sudoku-log" class="demo-log">Нажми «Один шаг»</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUEUE ============ -->
+<section id="queue" class="apply-section">
+  <h2>Очередь: игра «Змейка»</h2>
+  <div class="apply-grid">
+    <div class="apply-text">
+      <h3>Условие</h3>
+      <p>Управлять змейкой на поле. Она движется, ест яблоки, растёт и не должна врезаться в свой хвост. Каждый шаг — сдвиг всей змейки на одну клетку.</p>
+      <h3>Логика</h3>
+      <p>Тело змейки — это очередь. В начале — хвост, в конце — голова. При каждом шаге мы добавляем новую координату головы в конец (<code>enqueue</code>), а старую координату хвоста удаляем из начала (<code>dequeue</code>). Съели яблоко — добавляем голову, но <b>не удаляем</b> хвост: змейка растёт. Очередь гарантирует, что все сегменты движутся друг за другом без «разрывов».</p>
+      <h3>Где используется</h3>
+      <p>Классические игры «Змейка», «Трон», «Slither.io». Очередь здесь — не хранилище данных, а <b>модель движения</b> объекта.</p>
+      <h3>Сложность</h3>
+      <p>Enqueue/dequeue — <code>O(1)</code>. Проверка столкновений — <code>O(k)</code>, где k — длина змейки (можно ускорить до <code>O(1)</code> через HashSet позиций).</p>
+    </div>
+    <div class="apply-demo">
+      <h3>Демо: Змейка</h3>
+      <p class="muted small">Управление: стрелки или WASD. Пробел — пауза.</p>
+      <div class="snake-wrap">
+        <canvas id="snake-canvas" width="360" height="360"></canvas>
+        <div class="snake-side">
+          <div class="demo-stats" style="flex-direction:column; align-items:flex-start;">
+            <span>Счёт: <b id="snake-score">0</b></span>
+            <span>Длина очереди: <b id="snake-len">3</b></span>
+            <span>Голова: <b id="snake-head">—</b></span>
+          </div>
+          <div id="snake-queue" class="queue-view"></div>
+        </div>
+      </div>
+      <div class="demo-controls">
+        <button id="snake-start">Старт</button>
+        <button id="snake-pause" class="secondary">Пауза</button>
+      </div>
+      <div id="snake-log" class="demo-log">Нажми «Старт» и используй стрелки</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TREE ============ -->
+<section id="tree" class="apply-section">
+  <h2>Дерево: Behavior Tree для игрового AI</h2>
+  <div class="apply-grid">
+    <div class="apply-text">
+      <h3>Условие</h3>
+      <p>Описать сложное поведение NPC (патрулировать, преследовать, атаковать). Код не должен превращаться в «лапшу» из if-else с десятком флагов.</p>
+      <h3>Логика</h3>
+      <p>Используется <i>Behavior Tree</i> — иерархическое дерево исполнения. Листья — действия и условия, внутренние узлы — операторы: <b>Selector</b> (пробует детей пока один не успешен) и <b>Sequence</b> (выполняет по порядку пока все успешны). На каждом тике дерево обходится сверху вниз, выбирая актуальную ветку. Активная ветка подсвечивается — видно, почему NPC делает именно это.</p>
+      <h3>Где используется</h3>
+      <p>Unreal Engine (встроенная система Behavior Tree), Halo, BioShock, F.E.A.R. Стандарт де-факто для игрового AI. Комбинируется с Blackboard — общей памятью дерева.</p>
+      <h3>Сложность</h3>
+      <p>Обход за тик: <code>O(n)</code>, где n — число узлов в дереве. На практике n ≈ 10–50, поэтому стоимость незаметна.</p>
+    </div>
+    <div class="apply-demo">
+      <h3>Демо: NPC на дереве поведения</h3>
+      <p class="muted small">Синий — NPC, оранжевый — игрок. Нажми «Шаг» — NPC примет решение по дереву.</p>
+      <div class="bt-wrap">
+        <div class="bt-tree">
+          <svg id="bt-svg" width="340" height="320"></svg>
+        </div>
+        <div class="bt-world">
+          <canvas id="bt-canvas" width="220" height="220"></canvas>
+        </div>
+      </div>
+      <div class="demo-controls">
+        <button id="bt-step">Шаг</button>
+        <button id="bt-auto" class="secondary">Авто</button>
+        <button id="bt-reset" class="secondary">Сброс</button>
+      </div>
+      <div id="bt-log" class="demo-log">Нажми «Шаг»</div>
+    </div>
+  </div>
+</section>
+
+</main>
+<script src="apply.js"></script>
+</body>
+</html>

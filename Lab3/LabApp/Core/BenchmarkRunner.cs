@@ -16,8 +16,7 @@ public static class BenchmarkRunner
 {
     public static BenchmarkResult CompareStacks(
         int[] sizes,
-        int warmupRuns = 3,
-        int iterations = 7,
+        int warmupRuns = 5, int iterations = 20,
         int seed = 42)
     {
         var points = new List<BenchmarkPoint>(sizes.Length);
@@ -45,8 +44,7 @@ public static class BenchmarkRunner
 
     public static BenchmarkResult CompareQueues(
         int[] sizes,
-        int warmupRuns = 3,
-        int iterations = 7,
+        int warmupRuns = 5, int iterations = 20,
         int seed = 42)
     {
         var points = new List<BenchmarkPoint>(sizes.Length);
