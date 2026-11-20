@@ -3,6 +3,13 @@
 
 const $ = (id) => document.getElementById(id);
 
+/* Подзаголовок шапки и подпись примечания для каждой вкладки. */
+const TAB_SUBTITLES = {
+  task1: "Внутренние сортировки",
+  task2: "Алгоритмы внешней сортировки",
+  task3: "Подсчёт слов и сравнение алгоритмов",
+};
+
 const state = {
   tables: [],
   methods: [],
@@ -56,7 +63,7 @@ async function init() {
 
   const fileSelect = $("fileSelect");
   fileSelect.innerHTML = state.tables
-    .map((t) => `<option value="${escapeHtml(t.fileName)}">${escapeHtml(t.fileName)}</option>`)
+    .map((t) => `<option value="${escapeHtml(t.fileName)}">${escapeHtml(prettyFileName(t.fileName))} (${escapeHtml(t.fileName)})</option>`)
     .join("");
   if (state.tables.length === 0) {
     showError("В папке Data нет ни одного файла-таблицы (csv/tsv/txt). Положи файл и обнови страницу.");
@@ -82,7 +89,7 @@ function renderMethods() {
     card.addEventListener("click", () => {
       state.method = card.dataset.method;
       list.querySelectorAll(".methodCard").forEach((c) => c.classList.toggle("active", c === card));
-      invalidatePlan();
+      // Текущий процесс не трогаем: новый метод применится при следующем «Запустить».
     });
   });
 }
@@ -123,10 +130,7 @@ function renderKeySelect() {
   keySelect.innerHTML = cols.map((c) =>
     `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${c.type === "number" ? "число" : "текст"})</option>`
   ).join("");
-  keySelect.onchange = () => {
-    invalidatePlan();
-    highlightKeyColumn();
-  };
+  keySelect.onchange = highlightKeyColumn;
   highlightKeyColumn();
 }
 
@@ -191,7 +195,12 @@ function invalidatePlan() {
 }
 
 async function ensurePlan() {
-  if (state.plan) return true;
+  if (state.plan) {
+    if (state.plan.config === planConfig()) return true;
+    // Настройки изменились — при новом запуске начинаем прогон заново.
+    state.plan = null;
+    resetView();
+  }
   hideError();
   $("descBox").textContent = "Считаем шаги сортировки…";
   try {
@@ -205,12 +214,11 @@ async function ensurePlan() {
     plan.config = planConfig();
     state.plan = plan;
     state.rowsById = new Map(plan.rows.map((r) => [r.id, r]));
-    $("counterRow").hidden = false;
     updateButtons();
     return true;
   } catch (err) {
     showError(err.message);
-    $("descBox").textContent = "Настрой параметры слева и нажми «Запустить».";
+    $("descBox").textContent = "Настрой параметры и нажми «Запустить».";
     return false;
   }
 }
@@ -268,7 +276,7 @@ function onReset() {
 function updateButtons() {
   const has = !!state.plan;
   $("backBtn").disabled = !has || state.cursor < 0;
-  $("stepBtn").disabled = !has || state.cursor >= state.plan.steps.length - 1;
+  $("stepBtn").disabled = false; // «Шаг» доступен сразу: сам построит план и сделает шаг
   $("resetBtn").disabled = !has;
 }
 
@@ -297,7 +305,7 @@ function resetView() {
     renderTapes();
   } else {
     $("descBox").textContent =
-      "Настрой параметры слева и нажми «Запустить» — покажу сортировку по шагам: " +
+      "Нажми «Запустить» или «Шаг» — покажу сортировку по шагам: " +
       "что читаем, что сравниваем и куда переписываем.";
     const n = state.preview ? state.preview.rows.length : 0;
     state.files = [{ name: "A", role: "source", ids: [...Array(n).keys()], cursor: 0, runs: null }];
@@ -389,7 +397,7 @@ function renderTapes() {
     if (groups) {
       chipHtml = groups.map((group, gi) => {
         const chips = group.map((id) => chipHtmlFor(tape, id, flat++, memIds)).join("");
-        return `<span class="runGroup"><span class="runNo">серия ${gi + 1}</span>${chips}</span>`;
+        return `<span class="runGroup"><span class="runNo">Серия ${gi + 1}</span>${chips}</span>`;
       }).join("");
     } else {
       chipHtml = tape.ids.map((id) => chipHtmlFor(tape, id, flat++, memIds)).join("");
@@ -461,23 +469,31 @@ function renderDesc(step) {
 function renderCounters(step) {
   const row = $("counterRow");
   row.hidden = false;
-  row.innerHTML = `
-    <div class="stat" id="statC"><div class="num">${step.comparisons}</div><div class="lbl">⚖ сравнений</div></div>
-    <div class="stat" id="statM"><div class="num">${step.moves}</div><div class="lbl">↔ перестановок</div></div>
-    <div class="stat" id="statP"><div class="num">${step.passes}</div><div class="lbl">↻ проходов</div></div>`;
-  pulse("statC", step.index);
-  pulse("statM", step.index);
+  if (!row.dataset.built) {
+    row.innerHTML = `
+      <div class="stat" id="statC"><div class="num">0</div><div class="lbl">⚖ сравнений</div></div>
+      <div class="stat" id="statM"><div class="num">0</div><div class="lbl">↔ перестановок</div></div>
+      <div class="stat" id="statP"><div class="num">0</div><div class="lbl">↻ проходов</div></div>`;
+    row.dataset.built = "1";
+    // Подсветку снимаем после анимации — при переключении вкладок числа не мигают.
+    row.querySelectorAll(".stat").forEach((s) =>
+      s.addEventListener("animationend", () => s.classList.remove("pulse")));
+  }
+  setStat("statC", step.comparisons);
+  setStat("statM", step.moves);
+  setStat("statP", step.passes);
 }
 
-let lastPulse = { statC: -1, statM: -1, statP: -1 };
-function pulse(id, stepIndex) {
-  if (lastPulse[id] !== stepIndex) {
-    lastPulse[id] = stepIndex;
-    const el = $(id);
-    el.classList.remove("pulse");
-    void el.offsetWidth; // перезапуск анимации
-    el.classList.add("pulse");
-  }
+/* Число остаётся на своём месте; подсветка цветом — только когда значение изменилось. */
+function setStat(id, value) {
+  const stat = $(id);
+  const num = stat.querySelector(".num");
+  const text = String(value);
+  if (num.textContent === text) return;
+  num.textContent = text;
+  stat.classList.remove("pulse");
+  void stat.offsetWidth; // перезапуск анимации
+  stat.classList.add("pulse");
 }
 
 function syncLog(toStep) {
@@ -498,8 +514,9 @@ function syncLog(toStep) {
   const fragment = document.createDocumentFragment();
   for (const st of items) {
     const div = document.createElement("div");
-    div.className = `logLine ${st.logKind}`;
+    div.className = `logLine fresh ${st.logKind}`;
     div.textContent = st.logLine;
+    div.addEventListener("animationend", () => div.classList.remove("fresh"), { once: true });
     fragment.appendChild(div);
   }
   list.appendChild(fragment);
@@ -543,6 +560,20 @@ async function showResultPanel(fileName) {
 
 /* ---------------- Служебное ---------------- */
 
+/* Красивые подписи для известных файлов, для остальных — имя без расширения. */
+const PRETTY_FILE_NAMES = {
+  "countries.csv": "Страны",
+  "chemicals.csv": "Вещества",
+  "words.txt": "Слова",
+};
+
+function prettyFileName(fileName) {
+  const known = PRETTY_FILE_NAMES[fileName.toLowerCase()];
+  if (known) return known;
+  const stem = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+  return stem ? stem.charAt(0).toUpperCase() + stem.slice(1) : fileName;
+}
+
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -585,6 +616,10 @@ function bindControls() {
     if (!btn) return;
     document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === btn));
     document.querySelectorAll(".tabPage").forEach((p) => p.classList.toggle("active", p.id === `tab-${btn.dataset.tab}`));
+    const sub = TAB_SUBTITLES[btn.dataset.tab];
+    if (sub) $("brandSub").textContent = `Лабораторная работа №4 · ${sub}`;
+    // Примечание про внешнюю сортировку относится только к заданию 2.
+    $("pageNote").hidden = btn.dataset.tab !== "task2";
   });
 }
 
@@ -592,7 +627,7 @@ function setDirection(ascending) {
   state.ascending = ascending;
   $("ascBtn").classList.toggle("active", ascending);
   $("descBtn").classList.toggle("active", !ascending);
-  invalidatePlan();
+  // Текущий процесс не трогаем: новый порядок применится при следующем «Запустить».
 }
 
 init();

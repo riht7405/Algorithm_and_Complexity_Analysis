@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Лабораторная 4 — Внешняя сортировка таблицы</title>
+  <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
+  <link rel="icon" type="image/png" href="tiger.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <div class="logo">Л4</div>
+    <div class="logo"><img class="logoImg" src="tiger.png" alt="Л4"></div>
     <div class="brandText">
-      <h1>Внешняя сортировка таблицы</h1>
-      <p>Лабораторная работа №4 · задание 2 · C# / ASP.NET Core Minimal API</p>
+      <h1>Алгоритмы сортировки</h1>
+      <p id="brandSub">Лабораторная работа №4 · Алгоритмы внешней сортировки</p>
     </div>
   </div>
   <nav class="tabs" id="tabs">
@@ -23,16 +24,14 @@
 </header>
 
 <main>
-  <!-- Задание 1: не входит в объём этой работы -->
+  <!-- Задание 1 -->
   <section class="tabPage" id="tab-task1">
     <div class="panel placeholder">
       <h2>Задание 1. Внутренние сортировки</h2>
-      <p>Демонстрация внутренних сортировок (выбор, пузырёк, вставки, Шелл, HeapSort, QuickSort) в эту
-        работу <b>не входит</b>: по условию здесь выполняется только задание 2 — внешняя сортировка.</p>
     </div>
   </section>
 
-  <!-- Задание 2: основное приложение -->
+  <!-- Задание 2: внешняя сортировка -->
   <section class="tabPage active" id="tab-task2">
 
     <div class="layout">
@@ -42,7 +41,7 @@
         <h2>Настройка</h2>
 
         <label class="field">
-          <span>Таблица (файл из папки Data)</span>
+          <span>Таблица</span>
           <select id="fileSelect"></select>
         </label>
 
@@ -69,22 +68,6 @@
           </div>
         </div>
 
-        <label class="field">
-          <span>Задержка между шагами: <b id="delayVal">300</b> мс</span>
-          <input type="range" id="delayRange" min="50" max="1500" step="50" value="300">
-        </label>
-
-        <div class="btnRow">
-          <button id="playBtn" class="primary">▶ Запустить</button>
-          <button id="backBtn" disabled>⏮ Назад</button>
-          <button id="stepBtn" disabled>Шаг ⏭</button>
-          <button id="resetBtn" disabled>↺ Сброс</button>
-        </div>
-
-        <p class="hint">Сортировка читает таблицу из файла и записывает результат в новый файл в папке
-          <code>Data/results/</code>. Для пошаговой визуализации — до 200 записей. Свой файл достаточно
-          положить в <code>Data/</code> и обновить список.</p>
-
         <div id="errorBox" class="errorBox" hidden></div>
       </aside>
 
@@ -96,6 +79,18 @@
           <div id="stepCounter" class="stepCounter">шаг 0 / 0</div>
         </div>
 
+        <div class="playbackBar">
+          <button id="playBtn" class="primary">▶ Запустить</button>
+          <button id="stepBtn">Шаг ⏭</button>
+          <button id="backBtn" disabled>⏮ Назад</button>
+          <button id="resetBtn" disabled>↺ Сброс</button>
+          <label class="delayInline">
+            <span>задержка</span>
+            <input type="range" id="delayRange" min="50" max="1500" step="50" value="300">
+            <b id="delayVal">300</b>&nbsp;мс
+          </label>
+        </div>
+
         <div id="tapeArea" class="tapeArea">
           <div class="emptyStage">Загружаю таблицу…</div>
         </div>
@@ -103,8 +98,8 @@
         <div id="memoryBox" class="memoryBox" hidden></div>
 
         <div id="descBox" class="descBox">
-          Настрой параметры слева и нажми «Запустить» — покажу сортировку по шагам, как для младшей
-          школы: что читаем, что сравниваем и куда переписываем.
+          Нажми «Запустить» или «Шаг» — покажу сортировку по шагам: что читаем, что сравниваем
+          и куда переписываем.
         </div>
 
         <div id="counterRow" class="counterRow" hidden></div>
@@ -143,17 +138,15 @@
     </section>
   </section>
 
-  <!-- Задание 3: не входит в объём этой работы -->
+  <!-- Задание 3 -->
   <section class="tabPage" id="tab-task3">
     <div class="panel placeholder">
       <h2>Задание 3. Подсчёт слов и сравнение алгоритмов</h2>
-      <p>Сортировка слов текста (базовый алгоритм + ABC/radix) с подсчётом вхождений и замерами времени
-        в эту работу <b>не входит</b>: по условию здесь выполняется только задание 2 — внешняя сортировка.</p>
     </div>
   </section>
 </main>
 
-<footer class="footer">
+<footer class="footer" id="pageNote">
   <p>Внешняя сортировка: данные лежат в файле, в памяти держим лишь 1–4 значения — остальное живёт на
     «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.</p>
 </footer>

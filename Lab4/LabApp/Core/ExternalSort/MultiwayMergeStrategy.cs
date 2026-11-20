@@ -113,7 +113,7 @@ public sealed class MultiwayMergeStrategy : IExternalSortStrategy
                     t.Append(id);
                     t.RunGroups = TapeGroups.Chunk(t.Items, newLen);
                     builder.SplitMove(fileA, t, id,
-                        $"серия №{runNo} (длина {take}) → лента {t.Name}, шаг {k + 1} из {take}",
+                        $"Серия №{runNo} (длина {take}) → лента {t.Name}, шаг {k + 1} из {take}",
                         "В памяти 1 значение — запись, которую сейчас переписываем.");
                 }
                 tapeIdx++;

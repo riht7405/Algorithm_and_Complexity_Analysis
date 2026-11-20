@@ -76,7 +76,7 @@ public sealed class NaturalMergeStrategy : IExternalSortStrategy
                     target.Append(id);
                     target.RunGroups = TapeGroups.ByLengths(target.Items, assigned);
                     builder.SplitMove(fileA, target, id,
-                        $"серия №{r + 1} (длина {runs[r].Count}) → лента {target.Name}, шаг {k + 1} из {runs[r].Count}",
+                        $"Серия №{r + 1} (длина {runs[r].Count}) → лента {target.Name}, шаг {k + 1} из {runs[r].Count}",
                         "В памяти 1 значение — запись, которую сейчас переписываем.");
                 }
                 assigned.Add(runs[r].Count);

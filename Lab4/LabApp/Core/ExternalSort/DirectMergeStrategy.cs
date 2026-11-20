@@ -71,7 +71,7 @@ public sealed class DirectMergeStrategy : IExternalSortStrategy
                 inRun++;
                 int runNo = (target.Count + p - 1) / p;
                 builder.SplitMove(fileA, target, id,
-                    $"серия №{runNo} на ленте {target.Name}, шаг {inRun} из {p}",
+                    $"Серия №{runNo} на ленте {target.Name}, шаг {inRun} из {p}",
                     "В памяти 1 значение — запись, которую сейчас переписываем.");
             }
 

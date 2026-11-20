@@ -65,6 +65,7 @@ code { background: var(--accent-soft); padding: 1px 5px; border-radius: 5px; fon
   font-weight: 800; font-size: 18px;
   flex: none;
 }
+.logoImg { width: 30px; height: 30px; display: block; }
 
 .brandText h1 { font-size: clamp(17px, 2.6vw, 21px); }
 .brandText p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
@@ -130,6 +131,8 @@ select {
   background: var(--card);
   font: inherit;
   color: var(--ink);
+  max-width: 100%;
+  text-overflow: ellipsis;
 }
 
 .check { display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer; font-size: 13.5px; }
@@ -168,6 +171,19 @@ input[type="range"] { accent-color: var(--accent); height: 26px; }
 .seg.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 
 .btnRow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* Панель воспроизведения внутри сцены — кнопки всегда рядом с визуализацией. */
+.playbackBar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.delayInline {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  min-width: 230px; flex: 1 1 230px;
+  font-size: 12px; color: var(--muted); white-space: nowrap;
+}
+.delayInline input[type="range"] { flex: 1; min-width: 80px; }
+.delayInline b { color: var(--ink); font-weight: 700; }
 
 button {
   font: inherit; font-size: 13.5px; font-weight: 600;
@@ -238,11 +254,14 @@ button.primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca
   border: 1.5px dashed var(--accent-line);
   border-radius: 9px;
   padding: 4px;
+  padding-top: 11px; /* место для плашки «серия N» — она не налезает на записи */
   background: #fff;
   position: relative;
 }
 .runGroup .runNo {
   position: absolute; top: -8px; left: 8px;
+  z-index: 2; /* плашка всегда поверх записей, даже полупрозрачных */
+  white-space: nowrap; /* даже в узкой группе не переносится и не накрывает записи */
   font-size: 10px; font-weight: 700; color: var(--accent);
   background: var(--card); padding: 0 5px; border-radius: 6px;
   border: 1px solid var(--accent-line);
@@ -321,12 +340,13 @@ button.primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca
   border: 1px solid var(--line);
 }
 .stat .num { font-size: 19px; font-weight: 800; }
-.stat.pulse .num { animation: pulse .35s; }
+/* Число остаётся на месте: на мгновение меняется только цвет. */
+.stat.pulse .num { animation: pulse .55s; }
 .stat .lbl { font-size: 11.5px; color: var(--muted); }
 
 @keyframes pulse {
-  0% { transform: scale(1.25); color: var(--accent); }
-  100% { transform: scale(1); }
+  0% { color: var(--accent); }
+  100% { color: var(--ink); }
 }
 
 .doneBox {
@@ -375,8 +395,10 @@ button.primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca
   padding: 3px 8px;
   border-radius: 0 8px 8px 0;
   background: #fafbfe;
-  animation: fadeIn .18s;
 }
+/* Анимация только у появляющихся строк (класс .fresh снимается после
+   проигрывания — при переключении вкладок журнал не мигает). */
+.logLine.fresh { animation: fadeIn .18s; }
 .logLine.compare { border-left-color: var(--accent); }
 .logLine.move { border-left-color: var(--good); }
 .logLine.phase { border-left-color: #a78bfa; background: #f6f4ff; font-weight: 600; }
