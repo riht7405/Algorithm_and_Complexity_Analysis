@@ -82,6 +82,7 @@
         <div class="playbackBar">
           <button id="playBtn" class="primary">▶ Запустить</button>
           <button id="stepBtn">Шаг ⏭</button>
+          <button id="endBtn" title="Сразу показать последний шаг сортировки">⇥ В конец</button>
           <button id="backBtn" disabled>⏮ Назад</button>
           <button id="resetBtn" disabled>↺ Сброс</button>
           <label class="delayInline">
@@ -103,18 +104,19 @@
         </div>
 
         <div id="counterRow" class="counterRow" hidden></div>
-
-        <div id="doneBox" class="doneBox" hidden></div>
       </section>
 
       <!-- Журнал -->
       <aside class="panel logPanel">
         <div class="logHead">
           <h2>Журнал сравнений и перестановок</h2>
-          <label class="check small">
-            <input type="checkbox" id="followLog" checked>
-            <span>следить</span>
-          </label>
+          <div class="logActions">
+            <button id="logDownBtn" class="mini" title="Пролистать журнал вниз">↓ Вниз</button>
+            <label class="check small">
+              <input type="checkbox" id="followLog" checked>
+              <span>Следить</span>
+            </label>
+          </div>
         </div>
         <div id="logList" class="logList">
           <div class="logEmpty">Журнал появится после запуска сортировки.</div>
@@ -126,6 +128,12 @@
     <section class="panel tableView">
       <h2>Исходная таблица <span id="tableCaption" class="caption"></span></h2>
       <div class="tableWrap" id="initialTable"><p class="hint">Загружаю…</p></div>
+    </section>
+
+    <!-- История сортировок -->
+    <section class="panel tableView" id="historyPanel" hidden>
+      <h2>История сортировок <span class="caption">клик по «Время» меняет порядок · ✕ удаляет запись</span></h2>
+      <div class="tableWrap" id="historyTable"></div>
     </section>
 
     <!-- Результат -->

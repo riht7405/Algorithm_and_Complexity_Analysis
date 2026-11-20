@@ -1,4 +1,6 @@
-/* Лабораторная 4 — визуализация внешней сортировки. Ванильный JS, без сборки. */
+/* Лабораторная 4 — визуализация внешней сортировки. Ванильный JS, без сборки.
+   У каждого сочетания настроек (таблица, метод, ключ, порядок) — своя независимая
+   сессия: переключение туда-обратно сохраняет прогресс, ничего не сбрасывается. */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -14,7 +16,9 @@ const state = {
   tables: [],
   methods: [],
   preview: null,        // превью выбранной таблицы
-  plan: null,           // ответ /external-sort/run (вся трассировка)
+  sessions: new Map(),  // ключ настроек -> {plan, cursor, resultShown}
+  sessionKey: "",
+  plan: null,           // план текущей сессии
   rowsById: new Map(),
   cursor: -1,           // текущий шаг
   files: [],            // текущее состояние лент (снимки)
@@ -73,6 +77,7 @@ async function init() {
 
   renderMethods();
   await onFileChanged();
+  renderHistory();
 }
 
 function renderMethods() {
@@ -87,41 +92,45 @@ function renderMethods() {
     </div>`).join("");
   list.querySelectorAll(".methodCard").forEach((card) => {
     card.addEventListener("click", () => {
-      state.method = card.dataset.method;
+      const id = card.dataset.method;
+      if (id === state.method) return;
+      stashSession();
+      state.method = id;
       list.querySelectorAll(".methodCard").forEach((c) => c.classList.toggle("active", c === card));
-      // Текущий процесс не трогаем: новый метод применится при следующем «Запустить».
+      state.sessionKey = planConfig();
+      restoreSession();
     });
   });
 }
 
 async function onFileChanged() {
   const fileName = $("fileSelect").value;
+  stashSession(); // текущая сессия сохраняется под своим ключом
   state.fileName = fileName;
   // У текстовых файлов обычно нет заголовка — умолчание по расширению.
   const isTxt = fileName.toLowerCase().endsWith(".txt");
   $("hasHeader").checked = !isTxt;
   state.hasHeader = !isTxt;
-  await loadPreview();
+  await loadPreview(fileName, state.hasHeader);
+  if (state.fileName !== fileName) return; // пока грузились, выбрали другой файл
+  state.sessionKey = planConfig();
+  restoreSession();
 }
 
-async function loadPreview() {
+async function loadPreview(fileName, hasHeader) {
   hideError();
-  invalidatePlan();
   try {
-    state.preview = await post("/api/tables/preview", {
-      fileName: state.fileName,
-      hasHeader: $("hasHeader").checked,
-    });
-    state.hasHeader = $("hasHeader").checked;
+    const preview = await post("/api/tables/preview", { fileName, hasHeader });
+    if (state.fileName !== fileName || state.hasHeader !== hasHeader) return; // устарело
+    state.preview = preview;
     // Подписи записей доступны и до построения плана сортировки.
-    state.rowsById = new Map(state.preview.rows.map((r) => [r.id, r]));
+    state.rowsById = new Map(preview.rows.map((r) => [r.id, r]));
   } catch (err) {
     showError(err.message);
     state.preview = null;
   }
   renderKeySelect();
   renderInitialTable();
-  resetView();
 }
 
 function renderKeySelect() {
@@ -130,7 +139,12 @@ function renderKeySelect() {
   keySelect.innerHTML = cols.map((c) =>
     `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)} (${c.type === "number" ? "число" : "текст"})</option>`
   ).join("");
-  keySelect.onchange = highlightKeyColumn;
+  keySelect.onchange = () => {
+    stashSession();
+    state.sessionKey = planConfig();
+    highlightKeyColumn();
+    restoreSession();
+  };
   highlightKeyColumn();
 }
 
@@ -172,7 +186,9 @@ function buildTableHtml(preview) {
   return `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
 }
 
-/* ---------------- Запуск сортировки ---------------- */
+/* ---------------- Сессии настроек ---------------- */
+/* Ключ сессии = сочетание всех настроек. Переключение настройки сохраняет
+   текущую сессию и показывает сессию нового сочетания (или пустую сцену). */
 
 function planConfig() {
   return JSON.stringify({
@@ -184,23 +200,51 @@ function planConfig() {
   });
 }
 
-function invalidatePlan() {
-  state.plan = null;
-  state.cursor = -1;
-  state.logStep = -1;
-  state.resultShown = null;
-  stopPlayback();
-  updateButtons();
-  resetView();
+/* Записать текущую сессию в кэш (под её собственным ключом). */
+function syncSession() {
+  if (!state.plan) return;
+  if (!state.sessions.has(state.sessionKey) && state.sessions.size >= 15) {
+    for (const k of state.sessions.keys()) {
+      if (k !== state.sessionKey) { state.sessions.delete(k); break; }
+    }
+  }
+  state.sessions.set(state.sessionKey, {
+    plan: state.plan,
+    cursor: state.cursor,
+    resultShown: state.resultShown,
+  });
 }
 
-async function ensurePlan() {
+/* Перед сменой настройки: сохранить текущую сессию и остановить проигрывание. */
+function stashSession() {
+  stopPlayback();
+  syncSession();
+}
+
+/* Показать сессию для текущего сочетания настроек (или пустую сцену). */
+function restoreSession() {
+  stopPlayback();
+  const s = state.sessions.get(state.sessionKey);
+  state.plan = s ? s.plan : null;
+  state.cursor = s ? s.cursor : -1;
+  state.resultShown = s ? s.resultShown : null;
+  state.logStep = -1;
+  $("logList").innerHTML = ""; // журнал прошлой сессии не должен досыпаться в новую
   if (state.plan) {
-    if (state.plan.config === planConfig()) return true;
-    // Настройки изменились — при новом запуске начинаем прогон заново.
-    state.plan = null;
-    resetView();
+    state.rowsById = new Map(state.plan.rows.map((r) => [r.id, r]));
+  } else if (state.preview) {
+    state.rowsById = new Map(state.preview.rows.map((r) => [r.id, r]));
   }
+  renderSessionView({ animateLog: false, record: false });
+  updateButtons();
+  updatePlayBtn();
+}
+
+/* ---------------- Запуск сортировки ---------------- */
+
+async function ensurePlan() {
+  if (state.plan) return true;
+  const keyAtStart = state.sessionKey;
   hideError();
   $("descBox").textContent = "Считаем шаги сортировки…";
   try {
@@ -211,14 +255,19 @@ async function ensurePlan() {
       keyColumn: $("keySelect").value,
       ascending: state.ascending,
     });
-    plan.config = planConfig();
+    if (state.sessionKey !== keyAtStart) return false; // настройки сменили, пока считали
     state.plan = plan;
+    state.cursor = -1;
+    state.logStep = -1;
+    state.resultShown = null;
     state.rowsById = new Map(plan.rows.map((r) => [r.id, r]));
-    updateButtons();
+    syncSession();
     return true;
   } catch (err) {
-    showError(err.message);
-    $("descBox").textContent = "Настрой параметры и нажми «Запустить».";
+    if (state.sessionKey === keyAtStart) {
+      showError(err.message);
+      $("descBox").textContent = "Настрой параметры и нажми «Запустить».";
+    }
     return false;
   }
 }
@@ -226,9 +275,16 @@ async function ensurePlan() {
 async function onPlay() {
   if (state.playing) { stopPlayback(); return; }
   if (!await ensurePlan()) return;
-  if (state.cursor >= state.plan.steps.length - 1) { resetView(); } // начнём заново
+  const last = state.plan.steps.length - 1;
+  if (state.cursor >= last) { // «Заново»: начинаем этот прогон с начала
+    state.cursor = -1;
+    state.logStep = -1;
+    state.resultShown = null;
+    syncSession();
+    renderSessionView({ animateLog: false, record: false });
+  }
   state.playing = true;
-  $("playBtn").textContent = "⏸ Пауза";
+  updatePlayBtn();
   scheduleTick();
 }
 
@@ -242,19 +298,39 @@ async function tick() {
   const last = state.plan.steps.length - 1;
   if (state.cursor >= last) { stopPlayback(); return; }
   applyStep(state.cursor + 1);
-  if (state.cursor < last && state.playing) scheduleTick();
+  if (state.playing && state.cursor >= last) stopPlayback();
+  else if (state.playing) scheduleTick();
 }
 
 function stopPlayback() {
   state.playing = false;
   clearTimeout(state.timer);
-  if ($("playBtn")) $("playBtn").textContent = "▶ Запустить";
+  updatePlayBtn();
+}
+
+/* Кнопка запуска: Пауза во время проигрывания, «Заново» у завершённой сортировки. */
+function updatePlayBtn() {
+  const btn = $("playBtn");
+  if (state.playing) btn.textContent = "⏸ Пауза";
+  else if (state.plan && state.plan.steps.length > 0 && state.cursor >= state.plan.steps.length - 1) {
+    btn.textContent = "↻ Заново";
+  } else {
+    btn.textContent = "▶ Запустить";
+  }
 }
 
 async function onStep() {
   stopPlayback();
   if (!await ensurePlan()) return;
   if (state.cursor < state.plan.steps.length - 1) applyStep(state.cursor + 1);
+  else updatePlayBtn();
+}
+
+/* «В конец»: мгновенно показать последний шаг сортировки. */
+async function onJumpEnd() {
+  stopPlayback();
+  if (!await ensurePlan()) return;
+  applyStep(state.plan.steps.length - 1);
 }
 
 async function onBack() {
@@ -269,8 +345,11 @@ function onReset() {
     state.cursor = -1;
     state.logStep = -1;
     state.resultShown = null;
+    syncSession();
   }
-  resetView();
+  renderSessionView({ animateLog: false, record: false });
+  updateButtons();
+  updatePlayBtn();
 }
 
 function updateButtons() {
@@ -281,37 +360,46 @@ function updateButtons() {
 }
 
 /* ---------------- Отрисовка состояния ---------------- */
+/* Единая точка отрисовки: пустая сцена / готова к запуску / произвольный шаг / готово. */
 
-function resetView() {
-  stopPlayback();
-  if (state.plan) {
-    state.cursor = -1;
+function renderSessionView(opts = {}) {
+  const { animateLog = true, record = true } = opts;
+  const badge = $("phaseBadge");
+
+  if (!state.plan || state.cursor < 0) {
+    const ready = !!state.plan; // план построен, но шаги ещё не делали
     state.logStep = -1;
-    state.resultShown = null;
+    const n = ready ? state.plan.stats.inputRows : (state.preview ? state.preview.rows.length : 0);
+    state.files = [{ name: "A", role: "source", ids: [...Array(n).keys()], cursor: 0, runs: null }];
+    renderTapes();
+    badge.hidden = true;
+    $("memoryBox").hidden = true;
+    $("counterRow").hidden = true;
+    $("resultPanel").hidden = true;
+    $("progressBar").style.width = "0";
+    $("stepCounter").textContent = "шаг 0 / 0";
+    $("descBox").classList.remove("done");
+    $("descBox").textContent = ready
+      ? "Готово к запуску: нажми «Запустить» или «Шаг»."
+      : "Нажми «Запустить» или «Шаг» — покажу сортировку по шагам: что читаем, что сравниваем и куда переписываем.";
+    $("logList").innerHTML = '<div class="logEmpty">Журнал появится после запуска сортировки.</div>';
+    return;
+  }
+
+  const step = state.plan.steps[state.cursor];
+  state.files = filesAt(state.cursor) || state.files;
+  renderTapes();
+  renderMemory(step);
+  renderDesc(step);
+  renderCounters(step);
+  syncLog(state.cursor, animateLog);
+  renderProgress(step);
+
+  if (step.kind === "Done") {
+    showDone(step, record);
+  } else {
     $("resultPanel").hidden = true;
   }
-  updateButtons();
-  $("phaseBadge").hidden = true;
-  $("memoryBox").hidden = true;
-  $("counterRow").hidden = true;
-  $("doneBox").hidden = true;
-  $("progressBar").style.width = "0";
-  $("stepCounter").textContent = "шаг 0 / 0";
-  $("descBox").classList.remove("done");
-  if (state.plan) {
-    $("descBox").textContent = "Готово к запуску: нажми «Запустить» или «Шаг».";
-    const n = state.plan.stats.inputRows;
-    state.files = [{ name: "A", role: "source", ids: [...Array(n).keys()], cursor: 0, runs: null }];
-    renderTapes();
-  } else {
-    $("descBox").textContent =
-      "Нажми «Запустить» или «Шаг» — покажу сортировку по шагам: " +
-      "что читаем, что сравниваем и куда переписываем.";
-    const n = state.preview ? state.preview.rows.length : 0;
-    state.files = [{ name: "A", role: "source", ids: [...Array(n).keys()], cursor: 0, runs: null }];
-    renderTapes();
-  }
-  $("logList").innerHTML = '<div class="logEmpty">Журнал появится после запуска сортировки.</div>';
 }
 
 /* Состояние лент на шаге i: берём последний снимок ≤ i (сравнения файлы не меняют). */
@@ -323,27 +411,13 @@ function filesAt(i) {
   return null;
 }
 
-function applyStep(i) {
+function applyStep(i, opts = {}) {
   if (i < -1 || !state.plan) return;
   state.cursor = i;
-  const step = i < 0 ? null : state.plan.steps[i];
-
-  if (!step) { resetView(); return; }
-
-  state.files = filesAt(i) || state.files;
-  renderTapes();
-  renderMemory(step);
-  renderDesc(step);
-  renderCounters(step);
-  syncLog(i);
-  renderProgress(step);
+  syncSession();
+  renderSessionView(opts);
   updateButtons();
-
-  if (step.kind === "Done") {
-    showDone(step);
-  } else if (state.plan && state.cursor < state.plan.steps.length - 1) {
-    $("doneBox").hidden = true;
-  }
+  updatePlayBtn();
 }
 
 function labelOf(id) {
@@ -453,17 +527,11 @@ function renderDesc(step) {
   const box = $("descBox");
   box.classList.toggle("done", step.kind === "Done");
   const badge = $("phaseBadge");
-  if (step.passTitle) {
-    badge.hidden = false;
-    badge.textContent = `${step.phase} · ${step.passTitle}`;
-  } else if (step.kind === "PhaseStart" || step.kind === "Done") {
-    badge.hidden = false;
-    badge.textContent = step.phase;
-  } else {
-    badge.hidden = false;
-    badge.textContent = step.phase;
-  }
-  box.textContent = step.desc;
+  badge.hidden = false;
+  badge.textContent = step.passTitle ? `${step.phase} · ${step.passTitle}` : step.phase;
+  box.textContent = step.kind === "Done"
+    ? "Сортировка завершена. Результат — на панели «Результат» ниже."
+    : step.desc;
 }
 
 function renderCounters(step) {
@@ -496,7 +564,7 @@ function setStat(id, value) {
   stat.classList.add("pulse");
 }
 
-function syncLog(toStep) {
+function syncLog(toStep, animate = true) {
   const list = $("logList");
   const steps = state.plan.steps;
   if (toStep < state.logStep) {
@@ -514,9 +582,9 @@ function syncLog(toStep) {
   const fragment = document.createDocumentFragment();
   for (const st of items) {
     const div = document.createElement("div");
-    div.className = `logLine fresh ${st.logKind}`;
+    div.className = `logLine ${st.logKind}` + (animate ? " fresh" : "");
     div.textContent = st.logLine;
-    div.addEventListener("animationend", () => div.classList.remove("fresh"), { once: true });
+    if (animate) div.addEventListener("animationend", () => div.classList.remove("fresh"), { once: true });
     fragment.appendChild(div);
   }
   list.appendChild(fragment);
@@ -532,15 +600,10 @@ function renderProgress(step) {
   $("stepCounter").textContent = `шаг ${step.index + 1} / ${total}`;
 }
 
-async function showDone(step) {
-  const box = $("doneBox");
-  box.hidden = false;
-  const name = state.plan.resultFileName;
-  box.innerHTML = `
-    <span>🎉 Готово! Результат записан в файл</span>
-    <span class="fileName">${escapeHtml(name || "")}</span>
-    <a class="buttonLink" href="/api/results/${encodeURIComponent(name)}" download>⬇ Скачать</a>`;
-  await showResultPanel(name);
+async function showDone(step, record) {
+  updatePlayBtn();
+  await showResultPanel(state.plan.resultFileName);
+  if (record) addHistory(step);
 }
 
 async function showResultPanel(fileName) {
@@ -553,9 +616,75 @@ async function showResultPanel(fileName) {
     $("resultDownload").href = `/api/results/${encodeURIComponent(fileName)}`;
     $("resultPanel").hidden = false;
     state.resultShown = fileName;
+    syncSession();
   } catch (err) {
     /* файл результата не критичен для визуализации */
   }
+}
+
+/* ---------------- История сортировок ---------------- */
+
+const HISTORY_KEY = "lab4.sortHistory";
+let historyDesc = true; // по умолчанию — сначала новые
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
+}
+
+function saveHistory(list) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch { /* нет localStorage */ }
+}
+
+/* Одинаковая сортировка (таблица+метод+ключ+порядок) не добавляется второй раз —
+   у существующей записи обновляются счётчики и время завершения. */
+function addHistory(step) {
+  const methodTitle = (state.methods.find((m) => m.id === state.method) || {}).title || state.method;
+  const keyName = $("keySelect").value;
+  const id = [state.fileName, state.method, keyName, state.ascending ? "asc" : "desc"].join("|");
+  const list = loadHistory();
+  let rec = list.find((h) => h.id === id);
+  if (!rec) {
+    rec = { id, file: state.fileName, method: methodTitle, key: keyName, asc: state.ascending };
+    list.push(rec);
+  }
+  rec.method = methodTitle;
+  rec.passes = step.passes;
+  rec.comparisons = step.comparisons;
+  rec.moves = step.moves;
+  rec.finishedAt = new Date().toISOString();
+  saveHistory(list);
+  renderHistory();
+}
+
+function renderHistory() {
+  const panel = $("historyPanel");
+  const list = loadHistory();
+  if (list.length === 0) { panel.hidden = true; return; }
+  list.sort((a, b) => (a.finishedAt < b.finishedAt ? -1 : a.finishedAt > b.finishedAt ? 1 : 0));
+  if (historyDesc) list.reverse();
+  const fmt = (iso) => {
+    const d = new Date(iso);
+    return isNaN(d) ? "" : d.toLocaleString("ru-RU");
+  };
+  const head = `<tr>
+    <th>Таблица</th><th>Метод</th><th>Ключевой атрибут</th><th>Порядок</th>
+    <th>Проходов</th><th>Сравнений</th><th>Перестановок</th>
+    <th class="thSort" data-sort="time" title="Нажми, чтобы сменить порядок сортировки">Время ${historyDesc ? "▼" : "▲"}</th>
+    <th></th>
+  </tr>`;
+  const body = list.map((h) => `<tr>
+    <td>${escapeHtml(h.file)}</td>
+    <td>${escapeHtml(h.method)}</td>
+    <td>${escapeHtml(h.key)}</td>
+    <td>${h.asc ? "▲ по возрастанию" : "▼ по убыванию"}</td>
+    <td>${h.passes ?? ""}</td>
+    <td>${h.comparisons ?? ""}</td>
+    <td>${h.moves ?? ""}</td>
+    <td>${fmt(h.finishedAt)}</td>
+    <td class="histDel"><button class="mini danger" data-del="${escapeHtml(h.id)}" title="Удалить запись">✕</button></td>
+  </tr>`).join("");
+  $("historyTable").innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  panel.hidden = false;
 }
 
 /* ---------------- Служебное ---------------- */
@@ -593,6 +722,7 @@ function hideError() {
 function bindControls() {
   $("playBtn").addEventListener("click", onPlay);
   $("stepBtn").addEventListener("click", onStep);
+  $("endBtn").addEventListener("click", onJumpEnd);
   $("backBtn").addEventListener("click", onBack);
   $("resetBtn").addEventListener("click", onReset);
 
@@ -605,9 +735,32 @@ function bindControls() {
     if (state.playing) scheduleTick(); // пересобираем таймер с новой задержкой
   });
 
-  $("hasHeader").addEventListener("change", () => {
+  $("hasHeader").addEventListener("change", async () => {
+    stashSession();
     state.hasHeader = $("hasHeader").checked;
-    loadPreview();
+    await loadPreview(state.fileName, state.hasHeader);
+    state.sessionKey = planConfig();
+    restoreSession();
+  });
+
+  // Кнопка «пролистать журнал вниз».
+  $("logDownBtn").addEventListener("click", () => {
+    const list = $("logList");
+    list.scrollTop = list.scrollHeight;
+  });
+
+  // История сортировок: сортировка по времени и удаление записей.
+  $("historyTable").addEventListener("click", (e) => {
+    const del = e.target.closest("button[data-del]");
+    if (del) {
+      saveHistory(loadHistory().filter((h) => h.id !== del.dataset.del));
+      renderHistory();
+      return;
+    }
+    if (e.target.closest("th[data-sort]")) {
+      historyDesc = !historyDesc;
+      renderHistory();
+    }
   });
 
   // Вкладки заданий.
@@ -624,10 +777,13 @@ function bindControls() {
 }
 
 function setDirection(ascending) {
+  if (ascending === state.ascending) return;
+  stashSession();
   state.ascending = ascending;
   $("ascBtn").classList.toggle("active", ascending);
   $("descBtn").classList.toggle("active", !ascending);
-  // Текущий процесс не трогаем: новый порядок применится при следующем «Запустить».
+  state.sessionKey = planConfig();
+  restoreSession();
 }
 
 init();

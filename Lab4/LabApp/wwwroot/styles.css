@@ -170,7 +170,9 @@ input[type="range"] { accent-color: var(--accent); height: 26px; }
 }
 .seg.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 
-.btnRow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* Мини-кнопки (в шапке журнала, удаление строк истории). */
+button.mini { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
+button.mini.danger:hover:not(:disabled) { border-color: #fca5a5; background: var(--bad-soft); color: var(--bad); }
 
 /* Панель воспроизведения внутри сцены — кнопки всегда рядом с визуализацией. */
 .playbackBar {
@@ -349,20 +351,6 @@ button.primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca
   100% { color: var(--ink); }
 }
 
-.doneBox {
-  background: var(--good-soft);
-  border: 1.5px solid #a7f3d0;
-  border-radius: 12px;
-  padding: 12px 14px;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-  font-weight: 600;
-}
-.doneBox .fileName {
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 12.5px;
-  overflow-wrap: anywhere; /* длинное имя файла переносится, а не распирает панель */
-}
-
 .buttonLink {
   display: inline-block;
   background: var(--good); color: #fff;
@@ -376,6 +364,7 @@ button.primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca
 .logPanel { display: flex; flex-direction: column; min-height: 420px; }
 .logHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
 .logHead h2 { font-size: 15px; }
+.logActions { display: flex; align-items: center; gap: 8px; flex: none; }
 
 .logList {
   flex: 1;
@@ -429,6 +418,9 @@ table.data th { background: var(--bg); font-size: 12.5px; }
 table.data th.keyCol, table.data td.keyCol { background: var(--accent-soft); font-weight: 700; }
 table.data td.rowId { color: var(--muted); font-size: 11px; }
 table.data tr.newRow td { animation: fadeIn .25s; }
+table.data th.thSort { cursor: pointer; user-select: none; }
+table.data th.thSort:hover { color: var(--accent); }
+td.histDel { text-align: center; }
 
 /* ---------- Адаптивность ---------- */
 

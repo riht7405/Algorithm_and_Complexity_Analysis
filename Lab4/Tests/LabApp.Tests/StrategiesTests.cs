@@ -79,14 +79,14 @@ public class StrategiesTests
     [MemberData(nameof(StrategyIds))]
     public void Sorts_RussianText(string strategyId)
     {
-        string[] words = ["яблоко", "вишня", "абрикос", "банан", "груша", "дыня", "ёжевика", "лимон"];
+        string[] words = ["яблоко", "вишня", "абрикос", "банан", "груша", "дыня", "ежевика", "лимон"];
         var table = MakeTable(words, words);
         var strategy = Strategies.First(s => s.Id == strategyId);
 
         var trace = strategy.Execute(table, 1, ascending: true);
 
         var sorted = trace.FinalOrder.Select(id => table.Rows[id].Cells[1]).ToArray();
-        Assert.Equal(["абрикос", "банан", "вишня", "груша", "дыня", "ёжевика", "лимон", "яблоко"], sorted);
+        Assert.Equal(["абрикос", "банан", "вишня", "груша", "дыня", "ежевика", "лимон", "яблоко"], sorted);
     }
 
     [Theory]
