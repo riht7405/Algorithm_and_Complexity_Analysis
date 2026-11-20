@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Лабораторная 4 — Внешняя сортировка таблицы</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">Л4</div>
+    <div class="brandText">
+      <h1>Внешняя сортировка таблицы</h1>
+      <p>Лабораторная работа №4 · задание 2 · C# / ASP.NET Core Minimal API</p>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab" data-tab="task1">Задание 1</button>
+    <button class="tab active" data-tab="task2">Задание 2</button>
+    <button class="tab" data-tab="task3">Задание 3</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Задание 1: не входит в объём этой работы -->
+  <section class="tabPage" id="tab-task1">
+    <div class="panel placeholder">
+      <h2>Задание 1. Внутренние сортировки</h2>
+      <p>Демонстрация внутренних сортировок (выбор, пузырёк, вставки, Шелл, HeapSort, QuickSort) в эту
+        работу <b>не входит</b>: по условию здесь выполняется только задание 2 — внешняя сортировка.</p>
+    </div>
+  </section>
+
+  <!-- Задание 2: основное приложение -->
+  <section class="tabPage active" id="tab-task2">
+
+    <div class="layout">
+
+      <!-- Панель управления -->
+      <aside class="panel controls">
+        <h2>Настройка</h2>
+
+        <label class="field">
+          <span>Таблица (файл из папки Data)</span>
+          <select id="fileSelect"></select>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" id="hasHeader" checked>
+          <span>Первая строка файла — заголовок</span>
+        </label>
+
+        <div class="field">
+          <span>Метод внешней сортировки</span>
+          <div id="methodList" class="methods"></div>
+        </div>
+
+        <label class="field">
+          <span>Ключевой атрибут (по чему сортируем)</span>
+          <select id="keySelect"></select>
+        </label>
+
+        <div class="field">
+          <span>Порядок</span>
+          <div class="segmented">
+            <button id="ascBtn" class="seg active">▲ По возрастанию</button>
+            <button id="descBtn" class="seg">▼ По убыванию</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Задержка между шагами: <b id="delayVal">300</b> мс</span>
+          <input type="range" id="delayRange" min="50" max="1500" step="50" value="300">
+        </label>
+
+        <div class="btnRow">
+          <button id="playBtn" class="primary">▶ Запустить</button>
+          <button id="backBtn" disabled>⏮ Назад</button>
+          <button id="stepBtn" disabled>Шаг ⏭</button>
+          <button id="resetBtn" disabled>↺ Сброс</button>
+        </div>
+
+        <p class="hint">Сортировка читает таблицу из файла и записывает результат в новый файл в папке
+          <code>Data/results/</code>. Для пошаговой визуализации — до 200 записей. Свой файл достаточно
+          положить в <code>Data/</code> и обновить список.</p>
+
+        <div id="errorBox" class="errorBox" hidden></div>
+      </aside>
+
+      <!-- Сцена визуализации -->
+      <section class="panel stage">
+        <div class="stageHead">
+          <div id="phaseBadge" class="phaseBadge" hidden></div>
+          <div class="progressWrap"><div id="progressBar"></div></div>
+          <div id="stepCounter" class="stepCounter">шаг 0 / 0</div>
+        </div>
+
+        <div id="tapeArea" class="tapeArea">
+          <div class="emptyStage">Загружаю таблицу…</div>
+        </div>
+
+        <div id="memoryBox" class="memoryBox" hidden></div>
+
+        <div id="descBox" class="descBox">
+          Настрой параметры слева и нажми «Запустить» — покажу сортировку по шагам, как для младшей
+          школы: что читаем, что сравниваем и куда переписываем.
+        </div>
+
+        <div id="counterRow" class="counterRow" hidden></div>
+
+        <div id="doneBox" class="doneBox" hidden></div>
+      </section>
+
+      <!-- Журнал -->
+      <aside class="panel logPanel">
+        <div class="logHead">
+          <h2>Журнал сравнений и перестановок</h2>
+          <label class="check small">
+            <input type="checkbox" id="followLog" checked>
+            <span>следить</span>
+          </label>
+        </div>
+        <div id="logList" class="logList">
+          <div class="logEmpty">Журнал появится после запуска сортировки.</div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Исходная таблица -->
+    <section class="panel tableView">
+      <h2>Исходная таблица <span id="tableCaption" class="caption"></span></h2>
+      <div class="tableWrap" id="initialTable"><p class="hint">Загружаю…</p></div>
+    </section>
+
+    <!-- Результат -->
+    <section class="panel tableView" id="resultPanel" hidden>
+      <h2>Результат в файле <span id="resultCaption" class="caption"></span></h2>
+      <div class="resultActions">
+        <a id="resultDownload" class="buttonLink" href="#" download>⬇ Скачать файл результата</a>
+      </div>
+      <div class="tableWrap" id="resultTable"></div>
+    </section>
+  </section>
+
+  <!-- Задание 3: не входит в объём этой работы -->
+  <section class="tabPage" id="tab-task3">
+    <div class="panel placeholder">
+      <h2>Задание 3. Подсчёт слов и сравнение алгоритмов</h2>
+      <p>Сортировка слов текста (базовый алгоритм + ABC/radix) с подсчётом вхождений и замерами времени
+        в эту работу <b>не входит</b>: по условию здесь выполняется только задание 2 — внешняя сортировка.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Внешняя сортировка: данные лежат в файле, в памяти держим лишь 1–4 значения — остальное живёт на
+    «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

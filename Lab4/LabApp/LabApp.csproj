@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- false — чтобы работала сортировка «по алфавиту» через культуру ru-RU -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <RootNamespace>LabApp</RootNamespace>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,31 @@
+using LabApp.Api;
+using LabApp.Core;
+using LabApp.Core.ExternalSort;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://localhost:5000");
+
+// Таблицы лежат в папке Data рядом с проектом.
+builder.Services.AddSingleton<IDataStore>(sp =>
+    new FileSystemDataStore(Path.Combine(
+        sp.GetRequiredService<IWebHostEnvironment>().ContentRootPath, "Data")));
+
+// Стратегии внешней сортировки.
+// Чтобы добавить новую: реализуй IExternalSortStrategy и зарегистрируй её здесь.
+builder.Services.AddSingleton<IExternalSortStrategy, DirectMergeStrategy>();
+builder.Services.AddSingleton<IExternalSortStrategy, NaturalMergeStrategy>();
+builder.Services.AddSingleton<IExternalSortStrategy, MultiwayMergeStrategy>();
+builder.Services.AddSingleton<ExternalSorter>();
+
+var app = builder.Build();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", utc = DateTimeOffset.UtcNow }));
+
+app.MapSortEndpoints();
+
+app.Run();
+
+public partial class Program { }
