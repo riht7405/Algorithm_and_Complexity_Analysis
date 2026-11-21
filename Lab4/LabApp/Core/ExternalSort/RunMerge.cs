@@ -50,11 +50,17 @@ public static class RunMerge
                 string refill = next is int n2
                     ? $"На освободившееся место из ленты {fromName} приходит «{builder.LabelOf(n2)}»."
                     : $"Серия на ленте {fromName} закончилась.";
+
+                // Объясняем, почему в файл A попала именно эта запись — итог прошлого сравнения.
+                string because = raw == 0
+                    ? $"Победила на прошлом шаге сравнения: {builder.RelationText(xv, yv)} — при равенстве первой берём запись с левой ленты."
+                    : $"Победила на прошлом шаге сравнения: {builder.RelationText(winner, takeLeft ? yv : xv)} — так требует сортировка {(ascending ? "по возрастанию" : "по убыванию")}.";
                 builder.MergeMove(a, winner, $"Серия-результат в файле A растёт. {refill}",
                     memory,
                     memory.Count == 2
                         ? "В памяти снова 2 значения."
-                        : "В памяти 1 значение — вторая серия уже закончилась.");
+                        : "В памяти 1 значение — вторая серия уже закончилась.",
+                    because);
 
                 if (takeLeft) x = next; else y = next;
             }

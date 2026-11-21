@@ -321,9 +321,11 @@ button.primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca
 
 /* ---------- Описание шага ---------- */
 
+/* Плашка, где пишется, что происходит на шаге, — спокойный кремово-янтарный
+   тон: отличается от индиго-памяти и белых карточек, но не выбивается из палитры. */
 .descBox {
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
+  background: #fffbeb;
+  border: 1px solid #ecd9a6;
   border-radius: 12px;
   padding: 12px 14px;
   font-size: 14.5px;
@@ -421,6 +423,8 @@ table.data tr.newRow td { animation: fadeIn .25s; }
 table.data th.thSort { cursor: pointer; user-select: none; }
 table.data th.thSort:hover { color: var(--accent); }
 td.histDel { text-align: center; }
+.histActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+th.histCheck, td.histCheck { width: 30px; text-align: center; white-space: nowrap; }
 
 /* ---------- Адаптивность ---------- */
 

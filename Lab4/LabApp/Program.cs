@@ -20,7 +20,13 @@ builder.Services.AddSingleton<ExternalSorter>();
 var app = builder.Build();
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+// no-cache: браузер всегда перепроверяет статику, поэтому после правок
+// app.js / styles.css не нужно чистить кэш — обычного обновления страницы достаточно.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+        ctx.Context.Response.Headers.CacheControl = "no-cache, must-revalidate"
+});
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", utc = DateTimeOffset.UtcNow }));
 

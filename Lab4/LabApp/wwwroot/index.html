@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261121">
 </head>
 <body>
 <header class="topbar">
@@ -132,7 +132,11 @@
 
     <!-- История сортировок -->
     <section class="panel tableView" id="historyPanel" hidden>
-      <h2>История сортировок <span class="caption">клик по «Время» меняет порядок · ✕ удаляет запись</span></h2>
+      <h2>История сортировок <span class="caption">☑ — выбрать записи для удаления · клик по «Время» меняет порядок</span></h2>
+      <div class="histActions" id="histActions" hidden>
+        <button class="mini danger" id="histDeleteSel" type="button">Удалить выбранные (<span id="histSelCount">0</span>)</button>
+        <button class="mini danger" id="histDeleteAll" type="button">Удалить все</button>
+      </div>
       <div class="tableWrap" id="historyTable"></div>
     </section>
 
@@ -159,6 +163,6 @@
     «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.</p>
 </footer>
 
-<script src="app.js"></script>
+<script src="app.js?v=20261121"></script>
 </body>
 </html>

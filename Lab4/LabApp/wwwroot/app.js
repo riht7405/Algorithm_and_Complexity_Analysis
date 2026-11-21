@@ -626,6 +626,7 @@ async function showResultPanel(fileName) {
 
 const HISTORY_KEY = "lab4.sortHistory";
 let historyDesc = true; // по умолчанию — сначала новые
+let historySel = new Set(); // выбранные записи (id) для массового удаления
 
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
@@ -659,6 +660,11 @@ function addHistory(step) {
 function renderHistory() {
   const panel = $("historyPanel");
   const list = loadHistory();
+  // Выбор не должен ссылаться на уже удалённые записи.
+  const ids = new Set(list.map((h) => h.id));
+  for (const id of [...historySel]) {
+    if (!ids.has(id)) historySel.delete(id);
+  }
   if (list.length === 0) { panel.hidden = true; return; }
   list.sort((a, b) => (a.finishedAt < b.finishedAt ? -1 : a.finishedAt > b.finishedAt ? 1 : 0));
   if (historyDesc) list.reverse();
@@ -666,13 +672,16 @@ function renderHistory() {
     const d = new Date(iso);
     return isNaN(d) ? "" : d.toLocaleString("ru-RU");
   };
+  const allChecked = list.every((h) => historySel.has(h.id));
   const head = `<tr>
+    <th class="histCheck"><input type="checkbox" id="histCheckAll" title="Выбрать или снять все записи" ${allChecked ? "checked" : ""}></th>
     <th>Таблица</th><th>Метод</th><th>Ключевой атрибут</th><th>Порядок</th>
     <th>Проходов</th><th>Сравнений</th><th>Перестановок</th>
     <th class="thSort" data-sort="time" title="Нажми, чтобы сменить порядок сортировки">Время ${historyDesc ? "▼" : "▲"}</th>
     <th></th>
   </tr>`;
   const body = list.map((h) => `<tr>
+    <td class="histCheck"><input type="checkbox" class="histSel" data-id="${escapeHtml(h.id)}" ${historySel.has(h.id) ? "checked" : ""}></td>
     <td>${escapeHtml(h.file)}</td>
     <td>${escapeHtml(h.method)}</td>
     <td>${escapeHtml(h.key)}</td>
@@ -685,6 +694,22 @@ function renderHistory() {
   </tr>`).join("");
   $("historyTable").innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
   panel.hidden = false;
+  updateHistActions(list.length);
+}
+
+/* Кнопки «Удалить выбранные» и «Удалить все» над таблицей истории. */
+function updateHistActions(total = loadHistory().length) {
+  const bar = $("histActions");
+  if (!bar) return;
+  bar.hidden = total === 0;
+  $("histDeleteSel").disabled = historySel.size === 0;
+  $("histSelCount").textContent = historySel.size;
+  const boxes = document.querySelectorAll(".histSel");
+  const checkAll = $("histCheckAll");
+  if (checkAll && boxes.length > 0) {
+    checkAll.checked = historySel.size === boxes.length;
+    checkAll.indeterminate = historySel.size > 0 && historySel.size < boxes.length;
+  }
 }
 
 /* ---------------- Служебное ---------------- */
@@ -761,6 +786,35 @@ function bindControls() {
       historyDesc = !historyDesc;
       renderHistory();
     }
+  });
+
+  // Выбор записей истории: чекбоксы в строках и «выбрать все» в шапке.
+  $("historyTable").addEventListener("change", (e) => {
+    if (e.target.classList.contains("histSel")) {
+      if (e.target.checked) historySel.add(e.target.dataset.id);
+      else historySel.delete(e.target.dataset.id);
+      updateHistActions();
+    } else if (e.target.id === "histCheckAll") {
+      document.querySelectorAll(".histSel").forEach((b) => {
+        b.checked = e.target.checked;
+        if (e.target.checked) historySel.add(b.dataset.id);
+        else historySel.delete(b.dataset.id);
+      });
+      updateHistActions();
+    }
+  });
+
+  // Массовое удаление: только выбранные или вся история.
+  $("histDeleteSel").addEventListener("click", () => {
+    saveHistory(loadHistory().filter((h) => !historySel.has(h.id)));
+    historySel.clear();
+    renderHistory();
+  });
+  $("histDeleteAll").addEventListener("click", () => {
+    if (!confirm("Удалить все записи истории сортировок?")) return;
+    saveHistory([]);
+    historySel.clear();
+    renderHistory();
   });
 
   // Вкладки заданий.

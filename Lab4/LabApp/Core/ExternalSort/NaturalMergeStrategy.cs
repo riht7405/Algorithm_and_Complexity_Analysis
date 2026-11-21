@@ -75,8 +75,11 @@ public sealed class NaturalMergeStrategy : IExternalSortStrategy
                     int id = fileA.ReadNext();
                     target.Append(id);
                     target.RunGroups = TapeGroups.ByLengths(target.Items, assigned);
-                    builder.SplitMove(fileA, target, id,
-                        $"Серия №{r + 1} (длина {runs[r].Count}) → лента {target.Name}, шаг {k + 1} из {runs[r].Count}",
+                    string detail = k == 0
+                        ? SplitStartDetail(builder, runs, r, k, target)
+                        : $"Серия №{r + 1} → лента {target.Name}, шаг {k + 1} из {runs[r].Count}. " +
+                          $"Серия продолжается: {builder.RelationText(id, runs[r][k - 1])}.";
+                    builder.SplitMove(fileA, target, id, detail,
                         "В памяти 1 значение — запись, которую сейчас переписываем.");
                 }
                 assigned.Add(runs[r].Count);
@@ -115,6 +118,18 @@ public sealed class NaturalMergeStrategy : IExternalSortStrategy
                 return builder.Build(fileA.Items);
             }
         }
+    }
+
+    /// <summary>Объяснение для первой записи серии: почему началась новая серия (что сравнивалось
+    /// с последней записью предыдущей серии и почему порядок нарушился).</summary>
+    private static string SplitStartDetail(SortTraceBuilder builder, List<List<int>> runs, int r, int k,
+        TapeFile target)
+    {
+        string head = $"Серия №{r + 1} (длина {runs[r].Count}) → лента {target.Name}, шаг {k + 1} из {runs[r].Count}.";
+        if (r == 0)
+            return $"{head} Первая запись первой серии — сравнивать пока не с чем.";
+        int prevLast = runs[r - 1][^1];
+        return $"{head} Новая серия, потому что порядок нарушился: {builder.RelationText(prevLast, runs[r][0])}.";
     }
 
     /// <summary>Разбивает последовательность записей на максимальные упорядоченные серии.</summary>

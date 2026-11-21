@@ -188,10 +188,12 @@ public sealed class MultiwayMergeStrategy : IExternalSortStrategy
             string refill = next is int
                 ? $"На его место с ленты {tapes[tapeIdx].Name} приходит «{builder.LabelOf(next.Value)}»."
                 : $"Лента {tapes[tapeIdx].Name} в этой серии закончилась.";
+            string because = $"Победила на прошлом шаге сравнения: {builder.SelectionReason(memory[best], memory)}.";
             builder.MergeMove(fileA, memory[best],
                 $"Серия-результат в файле A растёт. {refill}",
                 after,
-                $"В памяти {after.Count} значени{(after.Count == 1 ? "е" : "я")} — по одному с каждой ленты.");
+                $"В памяти {after.Count} значени{(after.Count == 1 ? "е" : "я")} — по одному с каждой ленты.",
+                because);
 
             if (next is not null)
             {
