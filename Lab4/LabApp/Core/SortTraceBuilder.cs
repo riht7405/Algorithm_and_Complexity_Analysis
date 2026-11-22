@@ -83,22 +83,20 @@ public sealed class SortTraceBuilder
     {
         _comparisons++;
         string relation = BuildRelation(leftId, rightId, rawCmp);
-        string rule;
-        if (rawCmp == 0)
-            rule = "значения одинаковые, а при равенстве первой берём запись с левой ленты, чтобы порядок остался стабильным";
-        else if (Comparer.IsNumeric)
-            rule = Comparer.Ascending
-                ? "при сортировке по возрастанию первым идёт меньшее"
-                : "при сортировке по убыванию первым идёт большее";
-        else
-            rule = Comparer.Ascending
-                ? "при сортировке по возрастанию первой идёт запись, стоящая раньше по алфавиту"
-                : "при сортировке по убыванию первой идёт запись, стоящая позже по алфавиту";
+        string rule = rawCmp == 0
+            ? "при равенстве первой берём запись с левой ленты, чтобы порядок остался стабильным"
+            : Comparer.IsNumeric
+                ? Comparer.Ascending
+                    ? "при сортировке по возрастанию первым идёт меньшее значение"
+                    : "при сортировке по убыванию первым идёт большее значение"
+                : Comparer.Ascending
+                    ? "при сортировке по возрастанию первым идёт более раннее значение"
+                    : "при сортировке по убыванию первым идёт более позднее значение";
 
         AddStep(StepKind.Compare,
-            desc: $"Сравнили в памяти два значения: {WithKey(leftId)} и {WithKey(rightId)}. " +
+            desc: $"Сравнили в памяти два значения — по одному с каждой ленты: {WithKey(leftId)} и {WithKey(rightId)}. " +
                   $"Выходит: {relation} — {rule}, поэтому берём {WithKey(winnerId)}.",
-            log: $"⚖ Сравнение №{_comparisons}: {WithKey(leftId)} vs {WithKey(rightId)} → {relation} → берём {WithKey(winnerId)}",
+            log: $"⚖ Сравнение №{_comparisons}: {WithKey(leftId)} vs {WithKey(rightId)} → {relation} — {rule} → берём {WithKey(winnerId)}",
             "compare", memory: [leftId, rightId], note: "В памяти ровно 2 значения — по одному с каждой ленты.",
             snap: false);
     }
@@ -112,7 +110,7 @@ public sealed class SortTraceBuilder
         string ending = ids.Length == 1 ? "е" : "я";
         string reason = SelectionReason(winnerId, ids);
         AddStep(StepKind.Compare,
-            desc: $"Смотрим на {ids.Length} значени{ending} в памяти: {list}. " +
+            desc: $"Смотрим на {ids.Length} значени{ending} в памяти — по одному с каждой ленты: {list}. " +
                   $"Каждый шаг выбираем {dir} по ключевому атрибуту. Выходит: {reason}. " +
                   $"Переписываем в файл A {WithKey(winnerId)}.",
             log: $"⚖ Сравнение №{_comparisons}: [{list}] → {reason} → берём {WithKey(winnerId)}",
@@ -121,15 +119,19 @@ public sealed class SortTraceBuilder
     }
 
     /// <summary>Переписали запись-результат в файл (слияние). В memory — что осталось в памяти после шага.
-    /// because — объяснение, почему выбрана именно эта запись (итог прошлого сравнения).</summary>
+    /// because — объяснение, почему выбрана именно эта запись (итог прошлого сравнения);
+    /// fromName — лента, с которой пришла запись (попадает в строку журнала).</summary>
     public void MergeMove(TapeFile to, int rowId, string detail, IReadOnlyList<int> memory, string memoryNote,
-        string? because = null)
+        string? because = null, string? fromName = null)
     {
         _moves++;
         string lead = because is null ? "" : because + " ";
+        string log = fromName is null
+            ? $"↔ Перестановка №{_moves}: {WithKey(rowId)} → {to.Name} (позиция {to.Count})"
+            : $"↔ Перестановка №{_moves}: {WithKey(rowId)}: {fromName} → {to.Name} (позиция {to.Count})";
         AddStep(StepKind.Move,
             desc: $"{lead}Переписываем {WithKey(rowId)} в {TapeWord(to)} {to.Name}. {detail}",
-            log: $"↔ Перестановка №{_moves}: {WithKey(rowId)} → {to.Name} (позиция {to.Count})",
+            log: log,
             "move", memory: memory, note: memoryNote, snap: true);
     }
 
@@ -138,8 +140,9 @@ public sealed class SortTraceBuilder
     {
         _moves++;
         AddStep(StepKind.Flush,
-            desc: $"Серия на ленте {from.Name} кончилась. Остаток переписываем в {TapeWord(to)} {to.Name} " +
-                  $"без сравнений: {WithKey(rowId)}. {detail}",
+            desc: $"Серия на ленте {from.Name} кончилась — сравнивать больше не с чем. " +
+                  $"В памяти осталось одно значение {WithKey(rowId)}: дописываем его и весь остаток серии " +
+                  $"в {TapeWord(to)} {to.Name} без сравнений. {detail}",
             log: $"↔ Перестановка №{_moves}: {WithKey(rowId)}: остаток серии {from.Name} → {to.Name}",
             "move", memory: [rowId], note: "В памяти 1 значение — остаток серии.", snap: true);
     }
@@ -215,8 +218,9 @@ public sealed class SortTraceBuilder
 
     private string Fmt(double? value) => value is null ? "пусто" : Comparer.Format(value.Value);
 
-    /// <summary>Подпись записи со значением ключа: «Вода» (18.015); если подпись и есть ключ — без скобок.</summary>
-    private string WithKey(int rowId)
+    /// <summary>Подпись записи со значением ключа: «Вода» (18.015); если подпись и есть ключ — без скобок.
+    /// Публичная: стратегии вставляют подпись с ключом в свои пояснения.</summary>
+    public string WithKey(int rowId)
     {
         string label = LabelOf(rowId);
         string key = Comparer.KeyText(rowId);
@@ -231,19 +235,27 @@ public sealed class SortTraceBuilder
         return BuildRelation(aId, bId, raw);
     }
 
-    /// <summary>Почему из значений памяти выбрана именно эта запись: её связь с каждым из остальных.</summary>
+    /// <summary>Почему из значений памяти выбрана именно эта запись: её связь с каждым из остальных,
+    /// у каждого сравниваемого значения — подпись записи.</summary>
     public string SelectionReason(int winnerId, IReadOnlyList<int> ids)
     {
         var others = ids.Where(i => i != winnerId).ToList();
         if (others.Count == 0)
             return "сравнивать не с кем — в памяти осталась одна запись";
         if (!Comparer.IsNumeric)
+        {
+            string kw = Comparer.KeyText(winnerId);
+            var keys = others.Select(o => $"«{Comparer.KeyText(o)}»").ToList();
+            string listStr = keys.Count == 1 ? keys[0]
+                : string.Join(", ", keys.Take(keys.Count - 1)) + " и " + keys[^1];
             return Comparer.Ascending
-                ? $"«{Comparer.KeyText(winnerId)}» стоит раньше каждой из остальных по алфавиту"
-                : $"«{Comparer.KeyText(winnerId)}» стоит позже каждой из остальных по алфавиту";
-        var parts = others
-            .Select(o => BuildRelation(winnerId, o, Comparer.CompareRaw(winnerId, o)));
-        return string.Join(", ", parts) + (Comparer.Ascending ? " — наименьшее" : " — наибольшее");
+                ? $"«{kw}» стоит раньше {listStr} по алфавиту"
+                : $"«{kw}» стоит позже {listStr} по алфавиту";
+        }
+        var parts = others.Select(o =>
+            $"{BuildRelation(winnerId, o, Comparer.CompareRaw(winnerId, o))} («{LabelOf(o)}»)");
+        string best = Fmt(Comparer.Number(winnerId));
+        return string.Join(", ", parts) + $" — {best} " + (Comparer.Ascending ? "наименьшее" : "наибольшее");
     }
 
     /// <summary>

@@ -56,8 +56,11 @@ public sealed class MultiwayMergeStrategy : IExternalSortStrategy
             int id = fileA.ReadNext();
             TapeFile t = tapes[idx % TapeCount];
             t.Append(id);
-            builder.SplitMove(fileA, t, id,
-                $"запись №{idx + 1} идёт по кругу на ленту {t.Name}",
+            string detail = idx == 0
+                ? $"Первая запись файла A открывает раздачу — идёт на ленту {t.Name}. Серии пока длиной 1: каждая запись сама по себе."
+                : $"Раздаём по кругу: предыдущая запись ушла на ленту {tapes[(idx - 1) % TapeCount].Name}, " +
+                  $"эта идёт на ленту {t.Name}.";
+            builder.SplitMove(fileA, t, id, detail,
                 "В памяти 1 значение — запись, которую сейчас раздаём.");
             idx++;
         }
@@ -186,14 +189,14 @@ public sealed class MultiwayMergeStrategy : IExternalSortStrategy
                 after.Add(nid);
 
             string refill = next is int
-                ? $"На его место с ленты {tapes[tapeIdx].Name} приходит «{builder.LabelOf(next.Value)}»."
-                : $"Лента {tapes[tapeIdx].Name} в этой серии закончилась.";
+                ? $"На его место с ленты {tapes[tapeIdx].Name} приходит {builder.WithKey(next.Value)}."
+                : $"Лента {tapes[tapeIdx].Name} в этой серии закончилась — новое значение на его место не приходит.";
             string because = $"Победила на прошлом шаге сравнения: {builder.SelectionReason(memory[best], memory)}.";
             builder.MergeMove(fileA, memory[best],
                 $"Серия-результат в файле A растёт. {refill}",
                 after,
-                $"В памяти {after.Count} значени{(after.Count == 1 ? "е" : "я")} — по одному с каждой ленты.",
-                because);
+                $"В памяти {after.Count} значени{(after.Count == 1 ? "е" : "я")} — по одному с каждой ленты, где серия ещё не закончилась.",
+                because, tapes[tapeIdx].Name);
 
             if (next is not null)
             {

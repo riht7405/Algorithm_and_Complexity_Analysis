@@ -48,19 +48,23 @@ public static class RunMerge
                     memory.Add(nid);
 
                 string refill = next is int n2
-                    ? $"На освободившееся место из ленты {fromName} приходит «{builder.LabelOf(n2)}»."
-                    : $"Серия на ленте {fromName} закончилась.";
+                    ? $"На освободившееся место из ленты {fromName} приходит {builder.WithKey(n2)}."
+                    : $"Серия на ленте {fromName} закончилась — новое значение на это место не приходит.";
 
                 // Объясняем, почему в файл A попала именно эта запись — итог прошлого сравнения.
                 string because = raw == 0
-                    ? $"Победила на прошлом шаге сравнения: {builder.RelationText(xv, yv)} — при равенстве первой берём запись с левой ленты."
-                    : $"Победила на прошлом шаге сравнения: {builder.RelationText(winner, takeLeft ? yv : xv)} — так требует сортировка {(ascending ? "по возрастанию" : "по убыванию")}.";
+                    ? $"На прошлом шаге сравнили {builder.WithKey(xv)} и {builder.WithKey(yv)}: " +
+                      $"{builder.RelationText(xv, yv)} — при равенстве первой берём запись с левой ленты ({fromName})."
+                    : $"На прошлом шаге сравнили {builder.WithKey(xv)} и {builder.WithKey(yv)}: " +
+                      $"{builder.RelationText(winner, takeLeft ? yv : xv)} — при сортировке " +
+                      $"{(ascending ? "по возрастанию" : "по убыванию")} первой уходит " +
+                      $"{(ascending ? "меньшая" : "большая")} запись, это {builder.WithKey(winner)} с ленты {fromName}.";
                 builder.MergeMove(a, winner, $"Серия-результат в файле A растёт. {refill}",
                     memory,
                     memory.Count == 2
-                        ? "В памяти снова 2 значения."
-                        : "В памяти 1 значение — вторая серия уже закончилась.",
-                    because);
+                        ? $"В памяти снова 2 значения: проигравший с прошлого шага и новая запись с ленты {fromName}."
+                        : "В памяти 1 значение — вторая серия уже закончилась, сравнивать не с кем.",
+                    because, fromName);
 
                 if (takeLeft) x = next; else y = next;
             }
@@ -69,7 +73,7 @@ public static class RunMerge
                 // Серия на C кончилась: остаток B дописываем без сравнений.
                 a.Append(rest1);
                 a.RunGroups = TapeGroups.ByLengths(a.Items, TapeGroups.WithCurrent(completedLens, a.Count - startCount));
-                builder.FlushMove(b, a, rest1, "Хвост серии переписан целиком.");
+                builder.FlushMove(b, a, rest1, "Оставшиеся записи серии идут по порядку, поэтому дописываем их целиком.");
                 x = bx < bLen ? b.ReadNext() : null;
                 bx++;
             }
@@ -78,7 +82,7 @@ public static class RunMerge
                 // Серия на B кончилась: остаток C дописываем без сравнений.
                 a.Append(rest2);
                 a.RunGroups = TapeGroups.ByLengths(a.Items, TapeGroups.WithCurrent(completedLens, a.Count - startCount));
-                builder.FlushMove(c, a, rest2, "Хвост серии переписан целиком.");
+                builder.FlushMove(c, a, rest2, "Оставшиеся записи серии идут по порядку, поэтому дописываем их целиком.");
                 y = cy < cLen ? c.ReadNext() : null;
                 cy++;
             }

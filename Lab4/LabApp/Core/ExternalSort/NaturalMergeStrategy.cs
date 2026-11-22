@@ -76,9 +76,13 @@ public sealed class NaturalMergeStrategy : IExternalSortStrategy
                     target.Append(id);
                     target.RunGroups = TapeGroups.ByLengths(target.Items, assigned);
                     string detail = k == 0
-                        ? SplitStartDetail(builder, runs, r, k, target)
+                        ? SplitStartDetail(builder, runs, r, k, target, ascending)
                         : $"Серия №{r + 1} → лента {target.Name}, шаг {k + 1} из {runs[r].Count}. " +
-                          $"Серия продолжается: {builder.RelationText(id, runs[r][k - 1])}.";
+                          $"Серия продолжается: новая запись — {builder.WithKey(id)}, " +
+                          $"последняя запись серии — {builder.WithKey(runs[r][k - 1])}. " +
+                          $"{builder.RelationText(id, runs[r][k - 1])} — порядок " +
+                          $"{(ascending ? "по возрастанию" : "по убыванию")} не нарушается, " +
+                          $"поэтому «{builder.LabelOf(id)}» дописываем в конец серии №{r + 1} на ленту {target.Name}.";
                     builder.SplitMove(fileA, target, id, detail,
                         "В памяти 1 значение — запись, которую сейчас переписываем.");
                 }
@@ -120,16 +124,19 @@ public sealed class NaturalMergeStrategy : IExternalSortStrategy
         }
     }
 
-    /// <summary>Объяснение для первой записи серии: почему началась новая серия (что сравнивалось
-    /// с последней записью предыдущей серии и почему порядок нарушился).</summary>
+    /// <summary>Объяснение для первой записи серии: почему серия началась именно здесь —
+    /// что сравнивалось с последней записью предыдущей серии и почему порядок нарушился.</summary>
     private static string SplitStartDetail(SortTraceBuilder builder, List<List<int>> runs, int r, int k,
-        TapeFile target)
+        TapeFile target, bool ascending)
     {
         string head = $"Серия №{r + 1} (длина {runs[r].Count}) → лента {target.Name}, шаг {k + 1} из {runs[r].Count}.";
         if (r == 0)
-            return $"{head} Первая запись первой серии — сравнивать пока не с чем.";
+            return $"{head} Это самая первая запись файла A — сравнивать её не с чем, она открывает серию №1.";
         int prevLast = runs[r - 1][^1];
-        return $"{head} Новая серия, потому что порядок нарушился: {builder.RelationText(prevLast, runs[r][0])}.";
+        return $"{head} Серия №{r} закончилась на записи {builder.WithKey(prevLast)}, " +
+               $"а новая запись — {builder.WithKey(runs[r][0])}: {builder.RelationText(prevLast, runs[r][0])}. " +
+               $"При сортировке {(ascending ? "по возрастанию" : "по убыванию")} так продолжаться не может — " +
+               $"порядок нарушился, поэтому «{builder.LabelOf(runs[r][0])}» начинает новую серию №{r + 1}.";
     }
 
     /// <summary>Разбивает последовательность записей на максимальные упорядоченные серии.</summary>
