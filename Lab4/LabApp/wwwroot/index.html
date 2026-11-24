@@ -160,23 +160,18 @@
         <h2>Настройка</h2>
 
         <label class="field">
-          <span>Текст (файл в <code>Data/texts</code>)</span>
+          <span>Готовые текста</span>
           <select id="wTextSelect"></select>
         </label>
 
         <div class="field">
-          <span>Сгенерировать текст</span>
+          <span>Случайный текст</span>
           <div class="genRow">
-            <select id="wGenLength">
-              <option value="100">100 слов</option>
-              <option value="500">500 слов</option>
-              <option value="1000">1000 слов</option>
-              <option value="2000">2000 слов</option>
-              <option value="5000" selected>5000 слов</option>
-              <option value="10000">10000 слов</option>
-            </select>
-            <button id="wGenBtn">Создать</button>
+            <input type="number" id="wRandomWords" min="1" max="100" step="1" value="25" title="Сколько слов сгенерировать (1–100)">
+            <button id="wRandomBtn">Сгенерировать</button>
           </div>
+          <span class="fieldHint">от 1 до 100 слов; каждый раз — новый случайный текст,
+            состояние у случайных текстов не сохраняется</span>
         </div>
 
         <div class="field">
@@ -191,11 +186,6 @@
             <button id="wDescBtn" class="seg">▼ z → A</button>
           </div>
         </div>
-
-        <label class="field">
-          <span>Слов в демонстрации: <b id="wLimitVal">60</b> <span class="fieldHint">(полный текст — в замерах времени)</span></span>
-          <input type="range" id="wLimitRange" min="10" max="100" step="5" value="60">
-        </label>
 
         <div id="wErrorBox" class="errorBox" hidden></div>
       </aside>
@@ -282,24 +272,61 @@
 
     <!-- Замеры времени -->
     <section class="panel tableView" id="wBenchPanel">
-      <h2>Замеры времени <span class="caption">как в 1-й лабораторной: прогрев + несколько прогонов с Stopwatch</span></h2>
-      <div class="benchControls">
-        <label class="benchField"><span>Прогонов на точку:</span>
-          <input type="number" id="wBenchRuns" min="1" max="10" value="5"></label>
-        <label class="benchField"><span>Свой объём, слов:</span>
-          <input type="number" id="wBenchCustom" min="10" max="100000" placeholder="напр. 3000"></label>
-        <button id="wBenchCustomBtn">⏱ Замерить свой объём</button>
-        <button id="wBenchFileBtn">⏱ Замерить текст из списка</button>
-        <button id="wBenchRunBtn" class="primary">▶ Провести серию (100…5000)</button>
-        <button id="wBenchCsvBtn" class="mini" hidden>⬇ CSV</button>
-        <button id="wBenchClearBtn" class="mini danger">Очистить</button>
+      <h2>Замеры времени</h2>
+
+      <div class="benchTabs" id="wBenchTabs">
+        <button class="benchTab active" data-btab="run">Замер</button>
+        <button class="benchTab" data-btab="history">История</button>
       </div>
-      <div id="wBenchStatus" class="benchStatus"></div>
-      <div class="tableWrap" id="wBenchTable"></div>
-      <div id="wChartWrap" class="chartWrap" hidden></div>
-      <p class="hint">Замеряем время сортировки всех слов текста (подсчёт вхождений в замер не входит).
-        Тексты стандартных длин создаются в <code>Data/texts</code> автоматически. Результаты серии
-        сохраняются в браузере и не пропадают после обновления страницы.</p>
+
+      <!-- Вкладка «Замер»: параметры слева, график и таблица справа — как в 1-й лабораторной -->
+      <div id="wBenchRunTab" class="benchTabPage">
+        <div class="benchLayout">
+          <aside class="benchParams">
+            <h3>Параметры замера</h3>
+            <label class="field">
+              <span>Алгоритм</span>
+              <select id="wBenchAlgo"></select>
+            </label>
+            <label class="field">
+              <span>Слов в тексте</span>
+              <input type="number" id="wBenchWords" min="1" max="1000000" step="1" value="1000">
+            </label>
+            <label class="field">
+              <span>Прогонов на точку</span>
+              <input type="number" id="wBenchRuns" min="1" max="50" step="1" value="10">
+            </label>
+            <button id="wBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить</button>
+            <button id="wBenchClearChartBtn" class="benchBtn benchGray">Очистить график</button>
+            <div id="wBenchStatus" class="benchStatus"></div>
+            <p class="hint">Замер независим от настроек выше: текст генерируется указанного объёма,
+              время сортируются все его слова. Замеряем только сортировку (подсчёт вхождений не входит).</p>
+          </aside>
+          <div class="benchMain">
+            <div id="wChartWrap" class="chartWrap"></div>
+            <div id="wBenchFilterNote" class="benchFilterNote" hidden></div>
+            <div class="tableWrap" id="wBenchTable"></div>
+            <div class="benchCsvRow"><button id="wBenchCsvBtn" class="mini" hidden>⬇ CSV</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Вкладка «История»: журнал замеров с выбором — как в 1-й лабораторной -->
+      <div id="wBenchHistoryTab" class="benchTabPage" hidden>
+        <div class="benchLayout">
+          <aside class="benchParams">
+            <h3>История замеров</h3>
+            <p class="hint">Клик по строке — выбрать или снять выделение.
+              «Построить график» покажет выбранные точки на вкладке «Замер».</p>
+            <button id="wHistChartBtn" class="benchBtn benchPrimary">⬒ Построить график для выбранных</button>
+            <button id="wHistDeleteBtn" class="benchBtn benchDanger">🗑 Удалить выбранные</button>
+            <button id="wHistRefreshBtn" class="benchBtn benchGray">⟳ Обновить список</button>
+          </aside>
+          <div class="benchMain">
+            <div class="tableWrap" id="wBenchHistory"></div>
+          </div>
+        </div>
+      </div>
     </section>
   </section>
 </main>
@@ -309,7 +336,7 @@
     «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.</p>
 </footer>
 
-<script src="app.js?v=20261124"></script>
-<script src="wordtab.js?v=20261124"></script>
+<script src="app.js?v=20261124b"></script>
+<script src="wordtab.js?v=20261124b"></script>
 </body>
 </html>

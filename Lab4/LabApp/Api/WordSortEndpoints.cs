@@ -2,12 +2,11 @@ using LabApp.Api;
 using LabApp.Core;
 using LabApp.Core.Texts;
 using LabApp.Core.WordSort;
-using Microsoft.AspNetCore.Mvc;
 
 namespace LabApp.Api;
 
 /// <summary>
-/// API-маршруты задания 3: тексты и их генерация, алгоритмы сортировки слов,
+/// API-маршруты задания 3: готовые тексты, случайный текст, алгоритмы сортировки слов,
 /// запуск сортировки с подсчётом вхождений и замеры времени.
 /// Новый маршрут добавляется в этот класс.
 /// </summary>
@@ -17,29 +16,14 @@ public static class WordSortEndpoints
     {
         var api = app.MapGroup("/api");
 
-        // Список текстов (при первом обращении создаём тексты стандартных длин из задания).
+        // Готовые тексты (5…100 слов создаются при первом обращении) + свои файлы из Data/texts.
+        // Устаревшие сгенерированные файлы большого объёма в список демонстрации не попадают.
         api.MapGet("/texts", (ITextStore store) =>
         {
             store.EnsureDefaults();
-            return Results.Ok(store.ListTexts());
-        });
-
-        // Сгенерировать текст заданной длины (100, 500, 1000, 2000, 5000 слов или больше).
-        api.MapPost("/texts/generate", (GenerateTextRequest req, ITextStore store) =>
-        {
-            try
-            {
-                int n = Math.Clamp(req.WordCount, 10, TextGenerator.MaxGenerateWords);
-                // Сид фиксирован длиной: тот же объём → тот же текст (замеры воспроизводимы).
-                string content = TextGenerator.Generate(n, seed: n * 7919);
-                string fileName = store.SaveGenerated(n, content);
-                var words = TextNormalizer.ExtractWords(content);
-                return Results.Ok(new TextGeneratedDto(fileName, n, words.Distinct().Count()));
-            }
-            catch (Exception ex) when (ex is FileNotFoundException or TableFormatException)
-            {
-                return ApiError(ex);
-            }
+            return Results.Ok(store.ListTexts()
+                .Where(t => TextCatalog.IsVisibleInDemo(t.FileName, WordSorter.MaxTraceWords))
+                .ToList());
         });
 
         // Превью текста: первые строки + сколько в нём слов.
@@ -59,12 +43,12 @@ public static class WordSortEndpoints
         // Список алгоритмов сортировки слов.
         api.MapGet("/word-sort/methods", (WordSorter sorter) => Results.Ok(sorter.ListMethods()));
 
-        // Запуск сортировки слов: трассировка шагов + подсчёт + файл результата.
+        // Сортировка готового текста: трассировка шагов + подсчёт + файл результата.
         api.MapPost("/word-sort/run", (WordSortRequest req, WordSorter sorter) =>
         {
             try
             {
-                var run = sorter.Run(req.FileName, req.Method, req.Ascending, req.LimitWords);
+                var run = sorter.Run(req.FileName, req.Method, req.Ascending);
                 return Results.Ok(WordDtoMapper.ToResponse(run));
             }
             catch (Exception ex) when (ex is FileNotFoundException or TableFormatException)
@@ -73,12 +57,28 @@ public static class WordSortEndpoints
             }
         });
 
-        // Замер времени одного алгоритма на тексте заданной длины или из файла.
+        // Случайный текст: генерируем здесь же и сразу сортируем. Без seed — каждый раз новый текст;
+        // с seed — тот же текст (пересортировка другим алгоритмом/в другом порядке).
+        api.MapPost("/word-sort/run-random", (RandomSortRequest req, WordSorter sorter) =>
+        {
+            try
+            {
+                var run = sorter.RunRandom(req.WordCount, req.Seed, req.Method, req.Ascending);
+                return Results.Ok(WordDtoMapper.ToResponse(run));
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or TableFormatException)
+            {
+                return ApiError(ex);
+            }
+        });
+
+        // Замер времени одного выбранного алгоритма на тексте заданного объёма.
+        // Замер не зависит от настроек демонстрации — всё указывается в запросе.
         api.MapPost("/word-sort/bench", (WordBenchRequest req, WordSorter sorter) =>
         {
             try
             {
-                var result = sorter.Benchmark(req.Algorithm, req.Runs, req.WordCount, req.FileName);
+                var result = sorter.Benchmark(req.Algorithm, req.Runs, req.WordCount);
                 return Results.Ok(WordDtoMapper.ToDto(result));
             }
             catch (Exception ex) when (ex is FileNotFoundException or TableFormatException)

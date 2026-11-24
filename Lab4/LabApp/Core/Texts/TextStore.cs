@@ -94,9 +94,14 @@ public sealed class FileSystemTextStore : ITextStore
 
     public void EnsureDefaults()
     {
-        if (Directory.EnumerateFiles(_textsDir, "*.txt").Any()) return;
+        // Каждый подготовленный текст создаём, если его ещё нет: так набор 5…100 слов
+        // появляется и в пустой папке, и рядом с уже существующими файлами пользователя.
         foreach (int length in TextGenerator.DefaultLengths)
-            SaveGenerated(length, TextGenerator.Generate(length, seed: length * 7919));
+        {
+            string path = Path.Combine(_textsDir, TextGenerator.FileNameFor(length));
+            if (!File.Exists(path))
+                SaveGenerated(length, TextGenerator.Generate(length, seed: length * 7919));
+        }
     }
 
     private static string ValidateFileName(string fileName)
@@ -106,5 +111,23 @@ public sealed class FileSystemTextStore : ITextStore
         if (name.Length == 0 || fileName.Contains('/') || fileName.Contains('\\') || fileName.Contains(".."))
             throw new TableFormatException("Некорректное имя файла.");
         return name;
+    }
+}
+
+/// <summary>
+/// Какие файлы показывать в списке «Готовые текста»: подготовленные тексты 5…100 слов
+/// и свои небольшие файлы пользователя. Устаревшие сгенерированные файлы большого объёма
+/// (text_500.txt, text_1000.txt…) в демонстрацию не попадают — для них есть замеры времени.
+/// </summary>
+public static class TextCatalog
+{
+    private static readonly System.Text.RegularExpressions.Regex GeneratedPattern =
+        new(@"^text_(\d+)\.txt$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    public static bool IsVisibleInDemo(string fileName, int maxWords)
+    {
+        var match = GeneratedPattern.Match(Path.GetFileName(fileName));
+        if (!match.Success) return true; // файл пользователя — показываем
+        return int.TryParse(match.Groups[1].Value, out int n) && n <= maxWords;
     }
 }

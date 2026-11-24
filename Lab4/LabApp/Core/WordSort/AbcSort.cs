@@ -57,11 +57,14 @@ public sealed class AbcSort : IWordSortAlgorithm
                     $"Слова с позиции {lo} по {hi - 1} все одинаковые — «{a[lo].Text}». Одинаковые слова уже стоят рядом, " +
                     "двигать их не нужно: помечаем их как стоящие на своих местах.",
                     $"✓ Кусок [{lo}..{hi - 1}]: все слова «{a[lo].Text}» — уже по порядку",
-                    "Память свободна — сравнивать внутри куска нечего.");
+                    "Память свободна — сравнивать внутри куска нечего.",
+                    clearBuckets: true);
             }
             return;
         }
 
+        // Начало разбора нового куска: корзины предыдущего куска уже неактуальны —
+        // сразу очищаем их в снимке состояния, чтобы не висели на экране до первой укладки.
         b.PassLevel(depth + 1, "ABC",
             $"раскладываем {size} слов по букве №{depth + 1}",
             b.Active
@@ -69,7 +72,8 @@ public sealed class AbcSort : IWordSortAlgorithm
                   $"и кладём слово в корзину с этой буквой. Слова, у которых букв уже нет (они совпали с общим началом), " +
                   $"кладём в корзину «✓» — {(desc ? "такие слова идут последними" : "такие слова идут первыми")}."
                 : null,
-            RangeIds(a, lo, hi), "В памяти одно текущее слово и буква, которую ищем.");
+            RangeIds(a, lo, hi), "В памяти одно текущее слово и буква, которую ищем.",
+            clearBuckets: true);
 
         // ---- Распределение по корзинам ----
         var buckets = new Dictionary<char, List<int>>();  // буква → позиции слов в массиве
@@ -143,6 +147,16 @@ public sealed class AbcSort : IWordSortAlgorithm
             AddGroup(buckets[c], c.ToString());
         if (desc) AddGroup(shorts, "✓");
 
+        // переписываем корзины по-настоящему: сначала во временный список, затем обратно в массив.
+        // ВАЖНО: перезапись выполняется ДО шага сборки — снимок массива в шаге должен показывать
+        // уже собранный порядок, иначе визуализация отстаёт от логики на одну итерацию.
+        var rewritten = new WordEntry[size];
+        int pos = 0;
+        foreach (var group in groups)
+            foreach (int idx in group)
+                rewritten[pos++] = a[idx];
+        Array.Copy(rewritten, 0, a, lo, size);
+
         b.Collect(size,
             b.Active
                 ? $"Все слова разложены. Собираем корзины обратно в массив {(desc ? "от «z» к «a»" : "от «a» к «z»")}: " +
@@ -152,14 +166,6 @@ public sealed class AbcSort : IWordSortAlgorithm
             b.Active
                 ? $"↔ Перестановка №{b.Moves}: сборка корзин → массив ({string.Join(", ", groupNames)})"
                 : null);
-
-        // переписываем по-настоящему: сначала во временный список, затем обратно в массив
-        var rewritten = new WordEntry[size];
-        int pos = 0;
-        foreach (var group in groups)
-            foreach (int idx in group)
-                rewritten[pos++] = a[idx];
-        Array.Copy(rewritten, 0, a, lo, size);
 
         // ---- Рекурсивно разбираем каждую корзину по следующей букве ----
         int start = lo;

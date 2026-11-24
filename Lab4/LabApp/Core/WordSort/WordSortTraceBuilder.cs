@@ -56,15 +56,19 @@ public sealed class WordSortTraceBuilder
             memory: [], note: memoryNote, rangeIds: rangeIds);
     }
 
-    /// <summary>Начало прохода с явным уровнем (ABC): счётчик проходов = самый глубокий уровень букв.</summary>
-    public void PassLevel(int level, string phase, string title, string? desc, int[]? rangeIds, string memoryNote)
+    /// <summary>Начало прохода с явным уровнем (ABC): счётчик проходов = самый глубокий уровень букв.
+    /// clearBuckets — на старте нового куска корзины предыдущего куска неактуальны:
+    /// в снимок пишется пустой список, чтобы на экране не оставались старые корзины.</summary>
+    public void PassLevel(int level, string phase, string title, string? desc, int[]? rangeIds, string memoryNote,
+        bool clearBuckets = false)
     {
         _phase = phase;
         if (level > _maxLevel) _maxLevel = level;
         _passNo = level;
         _passTitle = $"Уровень {level}: {title}";
         AddStep(WordStepKind.PassStart, desc, $"--- {_passTitle} ---", "phase",
-            memory: [], note: memoryNote, rangeIds: rangeIds);
+            memory: [], note: memoryNote, rangeIds: rangeIds,
+            buckets: clearBuckets ? [] : null);
     }
 
     /// <summary>Сравнили два слова (стоят в массиве на позициях i и j).</summary>
@@ -124,10 +128,10 @@ public sealed class WordSortTraceBuilder
     }
 
     /// <summary>Пояснение без перестановок (например «все слова куска одинаковые — они уже по порядку»).</summary>
-    public void Note(string desc, string log, string memoryNote)
+    public void Note(string desc, string log, string memoryNote, bool clearBuckets = false)
     {
         AddStep(WordStepKind.Note, desc, log, "note",
-            memory: [], note: memoryNote);
+            memory: [], note: memoryNote, buckets: clearBuckets ? [] : null);
     }
 
     /// <summary>Слова встали на финальные места и больше не будут двигаться.</summary>

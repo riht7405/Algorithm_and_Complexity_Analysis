@@ -8,14 +8,15 @@ namespace LabApp.Api;
 /// <summary>Запрос превью текста (для показа исходного текста).</summary>
 public sealed record TextPreviewRequest(string FileName);
 
-/// <summary>Генерация текста заданной длины.</summary>
-public sealed record GenerateTextRequest(int WordCount);
+/// <summary>Запуск сортировки подготовленного текста.</summary>
+public sealed record WordSortRequest(string FileName, string Method, bool Ascending = true);
 
-/// <summary>Запуск сортировки слов.</summary>
-public sealed record WordSortRequest(string FileName, string Method, bool Ascending = true, int LimitWords = 60);
+/// <summary>Сортировка случайного текста: seed не задан — новый случайный текст;
+/// seed передан — тот же текст пересортировывается другим способом.</summary>
+public sealed record RandomSortRequest(string Method, bool Ascending = true, int WordCount = 25, int? Seed = null);
 
-/// <summary>Замер времени: текст из файла (fileName) или сгенерированной длины (wordCount).</summary>
-public sealed record WordBenchRequest(string Algorithm, int Runs = 5, int? WordCount = null, string? FileName = null);
+/// <summary>Замер времени: объём текста задаётся прямо здесь, независимо от настроек демонстрации.</summary>
+public sealed record WordBenchRequest(string Algorithm, int Runs = 10, int WordCount = 1000);
 
 // ---------- Ответы ----------
 
@@ -24,8 +25,6 @@ public sealed record TextListDto(string FileName, long SizeBytes);
 /// <summary>Превью текста: первые строки + сколько в нём слов.</summary>
 public sealed record TextPreviewDto(
     string FileName, int TotalWords, int UniqueWords, string Preview, bool PreviewTruncated);
-
-public sealed record TextGeneratedDto(string FileName, int WordCount, int UniqueWords);
 
 public sealed record WordEntryDto(int Id, string Text);
 
@@ -64,10 +63,8 @@ public sealed record WordSortResponse(
     string Method,
     string MethodTitle,
     bool Ascending,
-    int LimitWords,
-    int TotalWords,
-    int ShownWords,
-    int DemoUniqueWords,
+    int WordCount,
+    int UniqueWords,
     string PassesLabel,
     int MemorySlots,
     IReadOnlyList<WordEntryDto> Words,
@@ -77,7 +74,9 @@ public sealed record WordSortResponse(
     IReadOnlyList<WordCountRowDto> Counts,
     int CountsUniqueWords,
     bool CountsTruncated,
-    string CountNote);
+    string CountNote,
+    string? SourcePreview,
+    int? RandomSeed);
 
 public sealed record WordBenchRowDto(
     string Algorithm,
@@ -90,16 +89,16 @@ public sealed record WordBenchRowDto(
     double MaxMs,
     long Comparisons,
     long Moves,
-    int Passes);
+    int Passes,
+    IReadOnlyList<double> Times);
 
 // ---------- Преобразования ----------
 
 public static class WordDtoMapper
 {
     private const string CountNote =
-        "Подсчёт выполнен по всему тексту: отсортированный полный список слов пройден насквозь, " +
-        "у каждого слова посчитано число вхождений. В демонстрации выше участвуют первые слова текста " +
-        "(лимит на слайдере), полный список уникальных слов — в файле результата.";
+        "Подсчёт выполнен по всему тексту: отсортированный список слов пройден насквозь, " +
+        "у каждого слова посчитано число вхождений. Полный список — в файле результата.";
 
     public static TextPreviewDto ToPreview(string fileName, string text)
     {
@@ -117,8 +116,8 @@ public static class WordDtoMapper
     public static WordSortResponse ToResponse(WordSortRun run)
     {
         const int maxCountRows = WordSorter.MaxCountRows;
-        bool truncated = run.FullCounts.Count > maxCountRows;
-        var counts = run.FullCounts
+        bool truncated = run.Counts.Count > maxCountRows;
+        var counts = run.Counts
             .Take(maxCountRows)
             .Select((c, i) => new WordCountRowDto(i + 1, c.Word, c.Count))
             .ToList();
@@ -137,24 +136,24 @@ public static class WordDtoMapper
             run.Algorithm.Id,
             run.Algorithm.Title,
             run.Ascending,
-            run.LimitWords,
-            run.TotalWords,
-            run.DemoWords.Length,
-            WordSorter.CountOccurrences(run.DemoWords).Count,
+            run.WordCount,
+            run.Counts.Count,
             run.Algorithm.PassesLabel,
             run.Algorithm.MemorySlots,
-            run.DemoWords.Select(w => new WordEntryDto(w.Id, w.Text)).ToList(),
+            run.Words.Select(w => new WordEntryDto(w.Id, w.Text)).ToList(),
             steps,
             new WordStatsDto(run.Trace.TotalComparisons, run.Trace.TotalMoves,
                 run.Trace.TotalPasses, run.Trace.Steps.Count),
             run.ResultFileName,
             counts,
-            run.FullCounts.Count,
+            run.Counts.Count,
             truncated,
-            CountNote);
+            CountNote,
+            run.SourcePreview,
+            run.RandomSeed);
     }
 
     public static WordBenchRowDto ToDto(WordBenchResult r) => new(
         r.AlgorithmId, r.AlgorithmTitle, r.WordCount, r.Source,
-        r.Runs, r.AvgMs, r.MinMs, r.MaxMs, r.Comparisons, r.Moves, r.Passes);
+        r.Runs, r.AvgMs, r.MinMs, r.MaxMs, r.Comparisons, r.Moves, r.Passes, r.Times);
 }

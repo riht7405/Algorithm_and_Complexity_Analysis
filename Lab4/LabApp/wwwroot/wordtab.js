@@ -1,7 +1,9 @@
 /* Лабораторная 4, задание 3 — сортировка слов текста (QuickSort улучшенный + ABC-сортировка),
    подсчёт вхождений и замеры времени. Ванильный JS, без сборки.
-   У каждого сочетания настроек (текст, алгоритм, порядок, лимит слов) — своя независимая
-   сессия: переключение туда-обратно сохраняет прогресс, ничего не сбрасывается. */
+   Готовые тексты (5…100 слов) детерминированы, поэтому у каждого сочетания настроек
+   (текст, алгоритм, порядок) — своя независимая сессия: переключение туда-обратно
+   сохраняет прогресс. Случайные тексты каждый раз новые — их состояние не сохраняется.
+   Замеры времени полностью независимы от настроек демонстрации. */
 "use strict";
 
 (() => {
@@ -15,10 +17,9 @@
     fileName: null,
     method: "quick-improved",
     ascending: true,
-    limitWords: 60,
     sessions: new Map(),  // ключ настроек -> {plan, cursor, resultShown}
     sessionKey: "",
-    plan: null,           // план текущей сессии (ответ /api/word-sort/run)
+    plan: null,           // план текущей сессии (ответ /api/word-sort/run или /run-random)
     wordsById: new Map(), // id слова -> текст
     cursor: -1,           // текущий шаг
     resultShown: null,    // файл результата, для которого показана таблица
@@ -26,12 +27,14 @@
     playing: false,
     timer: null,
     delayMs: 300,
-    benchRows: [],        // строки таблицы замеров
+    random: null,         // {wordCount, seed} для активного случайного текста (null — готовый текст)
+    benchRows: [],        // все замеры (каждый «Замерить» — новая запись истории)
+    benchNextId: 1,
+    benchFilter: null,    // Set id строк истории — показывать на графике только их
+    histSelected: new Set(),
     benchRunning: false,
   };
 
-  /* Серии экспериментов по заданию: 100, 500, 1000, 2000, 5000 слов. */
-  const EXPERIMENT_LENGTHS = [100, 500, 1000, 2000, 5000];
   const BENCH_KEY = "lab4.wordBench.v1";
 
   /* ---------------- API ---------------- */
@@ -69,12 +72,29 @@
 
     fillTextSelect();
     renderMethods();
+    fillBenchAlgo();
     loadBench();
     await onTextChanged();
   }
 
+  /* Подпись в списке «Готовые текста»: только количество слов и имя файла. */
+  function prettyFileName(fileName) {
+    const m = /^text_(\d+)\.txt$/.exec(fileName);
+    if (m) return `${m[1]} слов`;
+    return fileName.replace(/\.[^.]+$/, "");
+  }
+
   function fillTextSelect(select) {
     const sel = $("wTextSelect");
+    // Сверху вниз по количеству слов: 5, 10, 25, 50, 100; свои файлы — после них по алфавиту.
+    const order = (t) => {
+      const m = /^text_(\d+)\.txt$/.exec(t.fileName);
+      return m ? [0, Number(m[1])] : [1, t.fileName];
+    };
+    state.texts.sort((a, b) => {
+      const [ka, va] = order(a), [kb, vb] = order(b);
+      return ka !== kb ? ka - kb : va < vb ? -1 : va > vb ? 1 : 0;
+    });
     sel.innerHTML = state.texts
       .map((t) => `<option value="${escapeHtml(t.fileName)}">${escapeHtml(prettyFileName(t.fileName))} (${escapeHtml(t.fileName)})</option>`)
       .join("");
@@ -103,19 +123,17 @@
         stashSession();
         state.method = id;
         list.querySelectorAll(".methodCard").forEach((c) => c.classList.toggle("active", c === card));
-        state.sessionKey = sessionKey();
-        restoreSession();
+        if (state.random) {
+          loadRandom(state.random.wordCount, state.random.seed); // тот же текст, другой алгоритм
+        } else {
+          state.sessionKey = sessionKey();
+          restoreSession();
+        }
       });
     });
   }
 
-  function prettyFileName(fileName) {
-    const m = /^text_(\d+)\.txt$/.exec(fileName);
-    if (m) return `Сгенерированный текст · ${m[1]} слов`;
-    return fileName.replace(/\.[^.]+$/, "");
-  }
-
-  /* ---------------- текст: выбор, превью, генерация ---------------- */
+  /* ---------------- текст: готовые текста ---------------- */
 
   async function onTextChanged() {
     const fileName = $("wTextSelect").value;
@@ -143,46 +161,61 @@
     }
   }
 
-  async function onGenerate() {
-    const n = Number($("wGenLength").value);
-    const btn = $("wGenBtn");
+  /* ---------------- случайный текст ---------------- */
+
+  async function onRandom() {
+    const n = clampInt($("wRandomWords"), 1, 100, 25);
+    stashSession(); // сохраняем сессию подготовленного текста, если она была
+    const btn = $("wRandomBtn");
     btn.disabled = true;
     btn.textContent = "Генерирую…";
     hideError();
     try {
-      const r = await post("/api/texts/generate", { wordCount: n });
-      if (!state.texts.some((t) => t.fileName === r.fileName)) {
-        state.texts.push({ fileName: r.fileName, sizeBytes: 0 });
-        state.texts.sort((a, b) => a.fileName.localeCompare(b.fileName));
-        fillTextSelect(r.fileName);
-      } else {
-        $("wTextSelect").value = r.fileName;
-      }
-      await onTextChanged();
-      $("wBenchStatus").textContent =
-        `Создан файл ${r.fileName}: ${r.wordCount} слов, уникальных — ${r.uniqueWords}.`;
+      await loadRandom(n, null); // без сидa — каждый раз новый случайный текст
     } catch (err) {
       showError(err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = "Создать";
+      btn.textContent = "Сгенерировать";
     }
   }
 
-  /* ---------------- сессии настроек ---------------- */
+  async function loadRandom(wordCount, seed) {
+    hideError();
+    const plan = await post("/api/word-sort/run-random", {
+      method: state.method,
+      ascending: state.ascending,
+      wordCount,
+      seed: seed ?? undefined,
+    });
+    stopPlayback();
+    state.plan = plan;
+    state.cursor = -1;
+    state.logStep = -1;
+    state.resultShown = null;
+    state.random = { wordCount: plan.wordCount, seed: plan.randomSeed };
+    state.sessionKey = "random"; // случайные сессии не кэшируются и не восстанавливаются
+    state.wordsById = new Map(plan.words.map((w) => [w.id, w.text]));
+    $("wTextCaption").textContent = `${plan.fileName} · уникальных: ${plan.uniqueWords}`;
+    $("wTextPreview").textContent = plan.sourcePreview || "";
+    renderSessionView({ animateLog: false, record: false });
+    updateButtons();
+    updatePlayBtn();
+  }
+
+  /* ---------------- сессии настроек (для готовых текстов) ---------------- */
 
   function sessionKey() {
     return JSON.stringify({
       f: state.fileName,
       m: state.method,
       a: state.ascending,
-      n: state.limitWords,
     });
   }
 
   function syncSession() {
-    if (!state.plan) return;
-    if (!state.sessions.has(state.sessionKey) && state.sessions.size >= 10) {
+    if (!state.plan || state.random) return; // случайные тексты не сохраняем — они каждый раз новые
+    if (!state.sessions.has(state.sessionKey) && state.sessions.size >= 12) {
       for (const k of state.sessions.keys()) {
         if (k !== state.sessionKey) { state.sessions.delete(k); break; }
       }
@@ -201,6 +234,7 @@
 
   function restoreSession() {
     stopPlayback();
+    state.random = null;
     const s = state.sessions.get(state.sessionKey);
     state.plan = s ? s.plan : null;
     state.cursor = s ? s.cursor : -1;
@@ -226,7 +260,6 @@
         fileName: state.fileName,
         method: state.method,
         ascending: state.ascending,
-        limitWords: state.limitWords,
       });
       if (state.sessionKey !== keyAtStart) return false; // настройки сменили, пока считали
       state.plan = plan;
@@ -358,7 +391,7 @@
       $("wDescBox").classList.remove("done");
       $("wDescBox").textContent = state.plan
         ? "Готово к запуску: нажми «Запустить» или «Шаг»."
-        : "Нажми «Запустить» или «Шаг» — покажу сортировку по шагам: что сравниваем, куда переставляем и как считаем вхождения.";
+        : "Выбери готовый текст или сгенерируй случайный и нажми «Запустить» — покажу сортировку по шагам: что сравниваем, куда переставляем и как считаем вхождения.";
       $("wLogList").innerHTML = '<div class="logEmpty">Журнал появится после запуска сортировки.</div>';
       return;
     }
@@ -373,7 +406,8 @@
     $("wLegend").hidden = false;
 
     if (step.kind === "Done") {
-      showDone(step, record);
+      updatePlayBtn();
+      showResultPanel(state.plan);
     } else {
       $("wResultPanel").hidden = true;
     }
@@ -414,8 +448,11 @@
       return `<span class="${cls.join(" ")}" title="${escapeHtml(titleOf(id))}">${escapeHtml(labelOf(id))}</span>`;
     }).join("");
 
+    // Пустой список корзин («[]» на старте нового куска) — корзины с экрана убраны.
     let bucketsHtml = "";
-    if (buckets) {
+    let bucketNote = "";
+    if (buckets && buckets.length > 0) {
+      bucketNote = `<div class="wBucketNote">Корзины текущего куска — слова разложены по букве, сейчас идёт разбор корзин.</div>`;
       bucketsHtml = `<div class="wBuckets">` + buckets.map((b) => {
         const active = b.ids.some((id) => hi.has(id));
         return `<div class="bucket ${active ? "active" : ""}">
@@ -426,10 +463,6 @@
         </div>`;
       }).join("") + `</div>`;
     }
-
-    const bucketNote = buckets
-      ? `<div class="wBucketNote">Корзины текущего куска — слова разложены по букве, сейчас идёт разбор корзин.</div>`
-      : "";
 
     scene.innerHTML = `
       <div class="wArrayWrap">
@@ -471,9 +504,7 @@
     const badge = $("wPhaseBadge");
     badge.hidden = false;
     badge.textContent = step.passTitle ? `${step.phase} · ${step.passTitle}` : step.phase;
-    box.textContent = step.kind === "Done"
-      ? step.desc
-      : step.desc;
+    box.textContent = step.desc;
   }
 
   function renderCounters(step) {
@@ -541,16 +572,10 @@
     $("wStepCounter").textContent = `шаг ${step.index + 1} / ${total}`;
   }
 
-  async function showDone(step, record) {
-    updatePlayBtn();
-    await showResultPanel(state.plan);
-  }
-
-  async function showResultPanel(plan) {
+  function showResultPanel(plan) {
     if (!plan.resultFileName) return;
     const key = plan.resultFileName;
     if (state.resultShown !== key) {
-      // данные подсчёта уже в плане — просто рисуем
       const maxCount = Math.max(...plan.counts.map((c) => c.count), 1);
       const rows = plan.counts.map((c) => `
         <tr>
@@ -560,7 +585,7 @@
           <td class="cntCell"><span class="cntBar" style="width:${Math.max(4, Math.round((c.count / maxCount) * 100))}%"></span></td>
         </tr>`).join("");
       const truncated = plan.countsTruncated
-        ? `<tr class="cntTruncated"><td colspan="4">Показаны первые ${plan.counts.length} из ${plan.countsUniqueWords} уникальных слов — полный список в файле результата.</td></tr>`
+        ? `<tr class="cntTruncated"><td colspan="4">Показаны первые ${plan.counts.length} из ${plan.uniqueWords} уникальных слов — полный список в файле результата.</td></tr>`
         : "";
       $("wCountsTable").innerHTML = `
         <table class="data wCounts">
@@ -568,7 +593,7 @@
           <tbody>${rows}${truncated}</tbody>
         </table>`;
       $("wResultCaption").textContent =
-        `файл ${plan.resultFileName} · слов в тексте: ${plan.totalWords} · уникальных: ${plan.countsUniqueWords}`;
+        `файл ${plan.resultFileName} · сортировалось слов: ${plan.wordCount} · уникальных: ${plan.uniqueWords}`;
       $("wCountNote").textContent = plan.countNote;
       $("wResultDownload").href = `/api/word-sort/results/${encodeURIComponent(plan.resultFileName)}`;
       const sortedIds = snapshotAt("arrayIds", state.plan.steps.length - 1) || plan.words.map((w) => w.id);
@@ -580,98 +605,35 @@
     $("wResultPanel").hidden = false;
   }
 
-  /* ---------------- замеры времени (по схеме 1-й лабораторной) ---------------- */
+  /* ---------------- замеры времени (как в 1-й лабораторной) ----------------
+     Полностью независимы от настроек демонстрации: алгоритм, объём текста и число
+     прогонов выбираются прямо здесь. Каждый «Замерить» — новая запись в истории. */
 
   function loadBench() {
-    try {
-      state.benchRows = JSON.parse(localStorage.getItem(BENCH_KEY)) || [];
-    } catch { state.benchRows = []; }
-    renderBenchTable();
+    let rows = [];
+    try { rows = JSON.parse(localStorage.getItem(BENCH_KEY)) || []; } catch { rows = []; }
+    let nextId = 1;
+    for (const r of rows) {
+      if (!Number.isFinite(r.id)) r.id = nextId++;
+      nextId = Math.max(nextId, r.id + 1);
+      if (!r.ts) r.ts = new Date().toISOString();
+      if (!Array.isArray(r.times)) r.times = [];
+    }
+    state.benchRows = rows;
+    state.benchNextId = nextId;
+    state.histSelected = new Set();
   }
 
   function saveBench() {
     try { localStorage.setItem(BENCH_KEY, JSON.stringify(state.benchRows)); } catch { /* нет localStorage */ }
   }
 
-  async function benchOne(algorithm, runs, params) {
-    return await post("/api/word-sort/bench", { algorithm, runs, ...params });
-  }
-
-  function addBenchRow(row) {
-    row.ts = new Date().toISOString();
-    // Одинаковая точка (объём + алгоритм) обновляется, а не дублируется.
-    const i = state.benchRows.findIndex(
-      (r) => r.wordCount === row.wordCount && r.algorithm === row.algorithm);
-    if (i >= 0) state.benchRows[i] = row;
-    else state.benchRows.push(row);
-    state.benchRows.sort((a, b) =>
-      a.wordCount - b.wordCount || a.algorithm.localeCompare(b.algorithm));
-    saveBench();
-    renderBenchTable();
-  }
-
-  async function runSeries() {
-    if (state.benchRunning) return;
-    const runs = clampRuns();
-    state.benchRunning = true;
-    setBenchButtons();
-    const algos = state.methods.map((m) => m.id);
-    const points = EXPERIMENT_LENGTHS.length * algos.length;
-    let done = 0;
-    const t0 = performance.now();
-    try {
-      for (const length of EXPERIMENT_LENGTHS) {
-        for (const algo of algos) {
-          done++;
-          $("wBenchStatus").textContent =
-            `Точка ${done} из ${points}: ${length} слов · ${titleOfAlgo(algo)} · замеряю…`;
-          const row = await benchOne(algo, runs, { wordCount: length });
-          addBenchRow(row);
-        }
-      }
-      $("wBenchStatus").textContent =
-        `Готово: ${points} точек за ${((performance.now() - t0) / 1000).toFixed(1)} с. ` +
-        "В таблице — среднее, минимум и максимум по прогонам (после прогрева).";
-    } catch (err) {
-      $("wBenchStatus").textContent = "Ошибка: " + err.message;
-    } finally {
-      state.benchRunning = false;
-      setBenchButtons();
-    }
-  }
-
-  async function benchByParams(params, label) {
-    if (state.benchRunning) return;
-    const runs = clampRuns();
-    state.benchRunning = true;
-    setBenchButtons();
-    const algos = state.methods.map((m) => m.id);
-    let done = 0;
-    try {
-      for (const algo of algos) {
-        done++;
-        $("wBenchStatus").textContent = `${label} · точка ${done} из ${algos.length}: ${titleOfAlgo(algo)} · замеряю…`;
-        const row = await benchOne(algo, runs, params);
-        addBenchRow(row);
-      }
-      $("wBenchStatus").textContent = `Готово: замер для «${label}» по ${algos.length} алгоритмам добавлен в таблицу.`;
-    } catch (err) {
-      $("wBenchStatus").textContent = "Ошибка: " + err.message;
-    } finally {
-      state.benchRunning = false;
-      setBenchButtons();
-    }
-  }
-
-  function clampRuns() {
-    const v = Number($("wBenchRuns").value);
-    return Number.isFinite(v) ? Math.min(10, Math.max(1, Math.round(v))) : 5;
-  }
-
-  function setBenchButtons() {
-    ["wBenchRunBtn", "wBenchFileBtn", "wBenchCustomBtn", "wBenchClearBtn"].forEach((id) => {
-      $(id).disabled = state.benchRunning;
-    });
+  function fillBenchAlgo() {
+    const sel = $("wBenchAlgo");
+    sel.innerHTML = state.methods
+      .map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.title)}</option>`)
+      .join("");
+    if (state.methods.length > 0) sel.value = state.methods[0].id;
   }
 
   function titleOfAlgo(id) {
@@ -679,17 +641,49 @@
     return m ? m.title : id;
   }
 
-  function renderBenchTable() {
-    const rows = state.benchRows;
+  /* Последний замер для каждой точки (объём + алгоритм) — они идут в таблицу результатов и график. */
+  function benchRowsForView() {
+    const src = state.benchFilter
+      ? state.benchRows.filter((r) => state.benchFilter.has(r.id))
+      : state.benchRows;
+    const latest = new Map();
+    for (const r of src) {
+      const key = `${r.wordCount}|${r.algorithm}`;
+      const cur = latest.get(key);
+      if (!cur || r.ts > cur.ts) latest.set(key, r);
+    }
+    return [...latest.values()].sort((a, b) =>
+      a.wordCount - b.wordCount || a.algorithm.localeCompare(b.algorithm));
+  }
+
+  function renderBenchAll() {
+    renderResults();
+    renderHistory();
+  }
+
+  function renderResults() {
+    const rows = benchRowsForView();
     $("wBenchCsvBtn").hidden = rows.length === 0;
+
+    const note = $("wBenchFilterNote");
+    if (state.benchFilter) {
+      note.textContent = `На графике и в таблице — выбранные в истории точки (${rows.length}). ` +
+        "«Очистить график» возвращает все замеры.";
+      note.hidden = false;
+    } else {
+      note.hidden = true;
+    }
+
     if (rows.length === 0) {
-      $("wBenchTable").innerHTML =
-        '<p class="hint">Таблица пустая. Нажми «Провести серию» — замерим оба алгоритма на текстах 100, 500, 1000, 2000 и 5000 слов.</p>';
+      $("wBenchTable").innerHTML = state.benchFilter
+        ? '<p class="hint">Среди выбранных точек нет замеров.</p>'
+        : '<p class="hint">Пока нет замеров. Выбери алгоритм, объём текста и число прогонов — и нажми «Замерить».</p>';
       $("wChartWrap").hidden = true;
+      $("wChartWrap").innerHTML = "";
       return;
     }
 
-    // Отношение ABC к QuickSort по среднему времени (на одинаковой длине).
+    // Отношение к QuickSort по среднему времени (на одинаковой длине).
     const quickAvg = new Map(
       rows.filter((r) => r.algorithm === "quick-improved").map((r) => [r.wordCount, r.avgMs]));
 
@@ -707,33 +701,115 @@
         ratio = "—";
       }
       return `<tr>
-        <td class="num">${r.wordCount}</td>
+        <td class="num">${fmtNum(r.wordCount)}</td>
         <td>${escapeHtml(r.algorithmTitle)}</td>
         <td class="num">${r.runs}</td>
         <td class="num">${fmtMs(r.avgMs)}</td>
         <td class="num">${fmtMs(r.minMs)}</td>
         <td class="num">${fmtMs(r.maxMs)}</td>
-        <td class="num">${r.comparisons}</td>
-        <td class="num">${r.moves}</td>
+        <td class="num">${fmtNum(r.comparisons)}</td>
+        <td class="num">${fmtNum(r.moves)}</td>
         <td class="num">${ratio}</td>
       </tr>`;
     }).join("");
     $("wBenchTable").innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-    renderChart();
+    renderChart(rows);
+  }
+
+  async function runBench() {
+    if (state.benchRunning) return;
+    const algo = $("wBenchAlgo").value;
+    const words = clampInt($("wBenchWords"), 1, 1000000, 1000);
+    const runs = clampInt($("wBenchRuns"), 1, 50, 10);
+    state.benchRunning = true;
+    $("wBenchRunBtn").disabled = true;
+    const t0 = performance.now();
+    $("wBenchStatus").textContent =
+      `Замеряю: ${fmtNum(words)} слов · ${titleOfAlgo(algo)} · ${runs} прогонов + прогрев…`;
+    try {
+      const row = await post("/api/word-sort/bench", { algorithm: algo, runs, wordCount: words });
+      addBenchRow(row);
+      $("wBenchStatus").textContent =
+        `Готово за ${((performance.now() - t0) / 1000).toFixed(1)} с: ${fmtNum(row.wordCount)} слов · ` +
+        `${row.algorithmTitle} · среднее ${fmtMs(row.avgMs)} мс (мин ${fmtMs(row.minMs)}, макс ${fmtMs(row.maxMs)}). ` +
+        "Точка добавлена в таблицу и в историю.";
+    } catch (err) {
+      $("wBenchStatus").textContent = "Ошибка: " + err.message;
+    } finally {
+      state.benchRunning = false;
+      $("wBenchRunBtn").disabled = false;
+    }
+  }
+
+  function addBenchRow(row) {
+    row.id = state.benchNextId++;
+    row.ts = new Date().toISOString();
+    if (!Array.isArray(row.times)) row.times = [];
+    state.benchRows.push(row);
+    saveBench();
+    renderBenchAll(); // график перерисовывается после каждого замера
+  }
+
+  function renderHistory() {
+    const wrap = $("wBenchHistory");
+    const rows = [...state.benchRows].sort((a, b) => (b.ts || "").localeCompare(a.ts || ""));
+    if (rows.length === 0) {
+      wrap.innerHTML = '<p class="hint">История пустая — сделай замер на вкладке «Замер».</p>';
+      return;
+    }
+    const head = `<tr><th></th><th>Дата</th><th>Слов</th><th>Алгоритм</th><th>Прогонов</th>
+      <th>Среднее, мс</th><th>Мин, мс</th><th>Макс, мс</th><th>Сравнений</th><th>Перестановок</th></tr>`;
+    const body = rows.map((r) => {
+      const sel = state.histSelected.has(r.id);
+      return `<tr class="${sel ? "selected" : ""}" data-id="${r.id}">
+        <td class="rowId">${sel ? "☑" : "☐"}</td>
+        <td>${fmtDate(r.ts)}</td>
+        <td class="num">${fmtNum(r.wordCount)}</td>
+        <td>${escapeHtml(r.algorithmTitle)}</td>
+        <td class="num">${r.runs}</td>
+        <td class="num">${fmtMs(r.avgMs)}</td>
+        <td class="num">${fmtMs(r.minMs)}</td>
+        <td class="num">${fmtMs(r.maxMs)}</td>
+        <td class="num">${fmtNum(r.comparisons)}</td>
+        <td class="num">${fmtNum(r.moves)}</td>
+      </tr>`;
+    }).join("");
+    wrap.innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    wrap.querySelectorAll("tr[data-id]").forEach((tr) =>
+      tr.addEventListener("click", () => {
+        const id = Number(tr.dataset.id);
+        if (state.histSelected.has(id)) state.histSelected.delete(id);
+        else state.histSelected.add(id);
+        renderHistory();
+      }));
+  }
+
+  function benchTab(name) {
+    document.querySelectorAll("#wBenchTabs .benchTab").forEach((b) =>
+      b.classList.toggle("active", b.dataset.btab === name));
+    $("wBenchRunTab").hidden = name !== "run";
+    $("wBenchHistoryTab").hidden = name !== "history";
   }
 
   function fmtMs(v) {
     return v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
   }
 
-  /* Простой SVG-график: среднее время (мс) по длине текста, линия на каждый алгоритм. */
-  function renderChart() {
-    const rows = state.benchRows;
+  function fmtNum(n) {
+    return Number(n).toLocaleString("ru-RU");
+  }
+
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleString("ru-RU");
+  }
+
+  /* Простой SVG-график: среднее время (мс) по объёму текста, линия на каждый алгоритм. */
+  function renderChart(rows) {
     const lengths = [...new Set(rows.map((r) => r.wordCount))].sort((a, b) => a - b);
     const algos = [...new Set(rows.map((r) => r.algorithm))];
-    if (rows.length < 2 || lengths.length < 2) { $("wChartWrap").hidden = true; return; }
+    if (rows.length < 1) { $("wChartWrap").hidden = true; return; }
 
-    const W = 640, H = 280, padL = 60, padR = 16, padT = 22, padB = 40;
+    const W = 640, H = 280, padL = 64, padR = 16, padT = 22, padB = 40;
     const maxMs = Math.max(...rows.map((r) => r.avgMs)) * 1.1 || 1;
     const x = (i) => padL + (i * (W - padL - padR)) / Math.max(1, lengths.length - 1);
     const y = (v) => H - padB - (Math.min(v, maxMs) / maxMs) * (H - padT - padB);
@@ -745,8 +821,11 @@
       grid.push(`<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="#e5e7eb" stroke-width="1"/>
         <text x="${padL - 6}" y="${gy + 3.5}" text-anchor="end" class="axLabel">${fmtMs(v)}</text>`);
     }
-    const xLabels = lengths.map((L, i) =>
-      `<text x="${x(i)}" y="${H - padB + 16}" text-anchor="middle" class="axLabel">${L}</text>`).join("");
+    // На оси X много больших чисел не уместятся — подписываем через шаг.
+    const step = Math.ceil(lengths.length / 8);
+    const xLabels = lengths.map((L, i) => (i % step === 0 || i === lengths.length - 1
+      ? `<text x="${x(i)}" y="${H - padB + 16}" text-anchor="middle" class="axLabel">${fmtNum(L)}</text>`
+      : "")).join("");
 
     const colors = { "quick-improved": "#4f46e5", "abc": "#059669" };
     const series = algos.map((algo) => {
@@ -755,17 +834,19 @@
         return row ? { px: x(i), py: y(row.avgMs), v: row.avgMs } : null;
       }).filter(Boolean);
       if (pts.length === 0) return "";
-      const line = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ");
+      const line = pts.length >= 2
+        ? `<path d="${pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ")}" fill="none" stroke="${colors[algo] || "#6b7280"}" stroke-width="2.5"/>`
+        : "";
       const dots = pts.map((p) =>
         `<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4" fill="${colors[algo] || "#6b7280"}"><title>${escapeHtml(titleOfAlgo(algo))}: ${fmtMs(p.v)} мс</title></circle>`).join("");
-      return `<path d="${line}" fill="none" stroke="${colors[algo] || "#6b7280"}" stroke-width="2.5"/>${dots}`;
+      return line + dots;
     }).join("");
 
     const legend = algos.map((algo) =>
       `<span class="chartLegend"><span class="dot" style="background:${colors[algo] || "#6b7280"}"></span>${escapeHtml(titleOfAlgo(algo))}</span>`).join("");
 
     $("wChartWrap").innerHTML = `
-      <div class="chartLegendRow">${legend}<span class="chartTitle">Среднее время сортировки, мс</span></div>
+      <div class="chartLegendRow">${legend}<span class="chartTitle">Время сортировки (среднее), мс</span></div>
       <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График времени сортировки">
         <rect x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="#fcfcfe" stroke="#e5e7eb"/>
         ${grid.join("")}${xLabels}${series}
@@ -775,10 +856,11 @@
   }
 
   function downloadCsv() {
-    const head = "слов;алгоритм;прогонов;среднее_мс;мин_мс;макс_мс;сравнений;перестановок;источник";
-    const lines = state.benchRows.map((r) =>
+    const rows = benchRowsForView();
+    const head = "слов;алгоритм;прогонов;среднее_мс;мин_мс;макс_мс;сравнений;перестановок;дата";
+    const lines = rows.map((r) =>
       [r.wordCount, r.algorithmTitle, r.runs, r.avgMs.toFixed(3), r.minMs.toFixed(3),
-       r.maxMs.toFixed(3), r.comparisons, r.moves, r.source].join(";"));
+       r.maxMs.toFixed(3), r.comparisons, r.moves, fmtDate(r.ts)].join(";"));
     const blob = new Blob(["\uFEFF" + [head, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -788,6 +870,12 @@
   }
 
   /* ---------------- служебное ---------------- */
+
+  function clampInt(input, min, max, fallback) {
+    const v = Number(input.value);
+    if (!Number.isFinite(v)) return fallback;
+    return Math.min(max, Math.max(min, Math.round(v)));
+  }
 
   function escapeHtml(text) {
     return String(text)
@@ -811,7 +899,7 @@
     $("wEndBtn").addEventListener("click", onJumpEnd);
     $("wBackBtn").addEventListener("click", onBack);
     $("wResetBtn").addEventListener("click", onReset);
-    $("wGenBtn").addEventListener("click", onGenerate);
+    $("wRandomBtn").addEventListener("click", onRandom);
 
     $("wAscBtn").addEventListener("click", () => setDirection(true));
     $("wDescBtn").addEventListener("click", () => setDirection(false));
@@ -822,42 +910,55 @@
       if (state.playing) scheduleTick();
     });
 
-    $("wLimitRange").addEventListener("input", (e) => {
-      $("wLimitVal").textContent = e.target.value;
-    });
-    $("wLimitRange").addEventListener("change", (e) => {
-      stashSession();
-      state.limitWords = Number(e.target.value);
-      state.sessionKey = sessionKey();
-      restoreSession();
-    });
-
     $("wLogDownBtn").addEventListener("click", () => {
       const list = $("wLogList");
       list.scrollTop = list.scrollHeight;
     });
 
-    // Замеры времени.
-    $("wBenchRunBtn").addEventListener("click", runSeries);
-    $("wBenchFileBtn").addEventListener("click", () => {
-      const file = $("wTextSelect").value;
-      benchByParams({ fileName: file }, `текст ${file}`);
-    });
-    $("wBenchCustomBtn").addEventListener("click", () => {
-      const v = Number($("wBenchCustom").value);
-      if (!Number.isFinite(v) || v < 10) {
-        $("wBenchStatus").textContent = "Введите объём — не меньше 10 слов.";
-        return;
-      }
-      benchByParams({ wordCount: Math.min(100000, Math.round(v)) }, `${Math.min(100000, Math.round(v))} слов`);
+    // Вкладки блока «Замеры времени»: Замер | История.
+    document.querySelectorAll("#wBenchTabs .benchTab").forEach((b) =>
+      b.addEventListener("click", () => benchTab(b.dataset.btab)));
+
+    // Замер: один алгоритм, свой объём, своё число прогонов — независимо от настроек выше.
+    $("wBenchRunBtn").addEventListener("click", runBench);
+    $("wBenchClearChartBtn").addEventListener("click", () => {
+      state.benchFilter = null;
+      renderBenchAll();
+      $("wBenchStatus").textContent = "График очищен: показаны все точки.";
     });
     $("wBenchCsvBtn").addEventListener("click", downloadCsv);
-    $("wBenchClearBtn").addEventListener("click", () => {
-      if (!confirm("Удалить все результаты замеров?")) return;
-      state.benchRows = [];
+
+    // История: выбор строк, график для выбранных, удаление, обновление.
+    $("wHistChartBtn").addEventListener("click", () => {
+      if (state.histSelected.size === 0) {
+        $("wBenchStatus").textContent = "Сначала выбери строки в списке истории (клик по строке).";
+        benchTab("run");
+        return;
+      }
+      state.benchFilter = new Set(state.histSelected);
+      benchTab("run");
+      renderBenchAll();
+    });
+    $("wHistDeleteBtn").addEventListener("click", () => {
+      if (state.histSelected.size === 0) {
+        $("wBenchStatus").textContent = "Сначала выбери строки в списке истории (клик по строке).";
+        benchTab("run");
+        return;
+      }
+      if (!confirm(`Удалить выбранные замеры (${state.histSelected.size})?`)) return;
+      state.benchRows = state.benchRows.filter((r) => !state.histSelected.has(r.id));
+      if (state.benchFilter) {
+        state.benchFilter = new Set([...state.benchFilter].filter((id) =>
+          state.benchRows.some((r) => r.id === id)));
+        if (state.benchFilter.size === 0) state.benchFilter = null;
+      }
+      state.histSelected = new Set();
       saveBench();
-      renderBenchTable();
-      $("wBenchStatus").textContent = "";
+      renderBenchAll();
+    });
+    $("wHistRefreshBtn").addEventListener("click", () => {
+      loadBench();
+      renderBenchAll();
     });
   }
 
@@ -867,8 +968,12 @@
     state.ascending = ascending;
     $("wAscBtn").classList.toggle("active", ascending);
     $("wDescBtn").classList.toggle("active", !ascending);
-    state.sessionKey = sessionKey();
-    restoreSession();
+    if (state.random) {
+      loadRandom(state.random.wordCount, state.random.seed); // тот же текст, другой порядок
+    } else {
+      state.sessionKey = sessionKey();
+      restoreSession();
+    }
   }
 
   init();

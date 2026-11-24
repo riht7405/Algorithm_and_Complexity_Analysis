@@ -283,16 +283,17 @@ public class WordSortTests
         {
             var store = new FileSystemTextStore(
                 Path.Combine(root, "texts"), Path.Combine(root, "results"));
-            store.SaveGenerated(60, TextGenerator.Generate(60, seed: 5));
             var sorter = new WordSorter(store, Algorithms);
 
-            var result = sorter.Benchmark("abc", runs: 2, wordCount: 60, fileName: null);
+            var result = sorter.Benchmark("abc", runs: 3, wordCount: 60);
             Assert.Equal(60, result.WordCount);
-            Assert.Equal(2, result.Runs);
+            Assert.Equal(3, result.Runs);
             Assert.True(result.AvgMs > 0);
             Assert.True(result.MinMs > 0 && result.MinMs <= result.AvgMs);
             Assert.True(result.MaxMs >= result.AvgMs);
             Assert.True(result.Comparisons > 0);
+            Assert.Equal(3, result.Times.Count); // время каждого прогона — для истории
+            Assert.All(result.Times, (t) => Assert.True(t > 0));
         }
         finally
         {
@@ -310,7 +311,7 @@ public class WordSortTests
                 Path.Combine(root, "texts"), Path.Combine(root, "results"));
             var sorter = new WordSorter(store, Algorithms);
             Assert.Throws<TableFormatException>(() =>
-                sorter.Benchmark("no-such-algo", 1, wordCount: 20, fileName: null));
+                sorter.Benchmark("no-such-algo", 1, wordCount: 20));
         }
         finally
         {
@@ -330,23 +331,25 @@ public class WordSortTests
             store.SaveGenerated(40, TextGenerator.Generate(40, seed: 8));
             var sorter = new WordSorter(store, Algorithms);
 
-            var run = sorter.Run("text_40.txt", algorithmId, ascending: true, limitWords: 20);
+            var run = sorter.Run("text_40.txt", algorithmId, ascending: true);
 
-            // Демонстрация: 20 слов, трассировка заканчивается Done.
-            Assert.Equal(20, run.LimitWords);
-            Assert.Equal(40, run.TotalWords);
+            // Сортируются ВСЕ слова файла, трассировка заканчивается Done.
+            Assert.Equal(40, run.WordCount);
+            Assert.Equal(40, run.Words.Length);
+            Assert.Null(run.SourcePreview); // у файла исходный текст читается превью-запросом
+            Assert.Null(run.RandomSeed);
             Assert.Equal(WordStepKind.Done, run.Trace.Steps[^1].Kind);
 
             // Подсчёт по всему тексту: сумма вхождений = числу слов, слова в алфавитном порядке.
-            Assert.Equal(40, run.FullCounts.Sum(c => c.Count));
-            var words = run.FullCounts.Select(c => c.Word).ToArray();
+            Assert.Equal(40, run.Counts.Sum(c => c.Count));
+            var words = run.Counts.Select(c => c.Word).ToArray();
             Assert.Equal(words.OrderBy(w => w, StringComparer.Ordinal), words);
 
             // Файл результата записан и содержит заголовок и все уникальные слова.
             string path = store.ResultPath(run.ResultFileName);
             var lines = File.ReadAllLines(path);
             Assert.Equal("слово;вхождений", lines[0]);
-            Assert.Equal(run.FullCounts.Count, lines.Length - 1);
+            Assert.Equal(run.Counts.Count, lines.Length - 1);
         }
         finally
         {
@@ -365,7 +368,134 @@ public class WordSortTests
             store.SaveGenerated(0, "...");
             var sorter = new WordSorter(store, Algorithms);
             Assert.Throws<TableFormatException>(() =>
-                sorter.Run("text_0.txt", "quick-improved", ascending: true, limitWords: 20));
+                sorter.Run("text_0.txt", "quick-improved", ascending: true));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WordSorter_Run_TooManyWords_ThrowsWithHint()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "lab4tests-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new FileSystemTextStore(
+                Path.Combine(root, "texts"), Path.Combine(root, "results"));
+            store.SaveGenerated(150, TextGenerator.Generate(150, seed: 2));
+            var sorter = new WordSorter(store, Algorithms);
+            var ex = Assert.Throws<TableFormatException>(() =>
+                sorter.Run("text_150.txt", "abc", ascending: true));
+            Assert.Contains("Замеры времени", ex.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WordSorter_RunRandom_EachCallIsANewRandomText()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "lab4tests-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new FileSystemTextStore(
+                Path.Combine(root, "texts"), Path.Combine(root, "results"));
+            var sorter = new WordSorter(store, Algorithms);
+
+            var first = sorter.RunRandom(30, seed: null, "abc", ascending: true);
+            var second = sorter.RunRandom(30, seed: null, "abc", ascending: true);
+
+            // Каждый вызов — новый случайный текст (без сидa случайность берётся из энтропии).
+            Assert.NotEqual(
+                first.Words.Select(w => w.Text),
+                second.Words.Select(w => w.Text));
+            Assert.NotNull(first.SourcePreview);
+            Assert.NotNull(first.RandomSeed);
+            Assert.Equal(30, first.WordCount);
+            Assert.Equal(WordStepKind.Done, first.Trace.Steps[^1].Kind);
+            Assert.StartsWith("words_random_", first.ResultFileName);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WordSorter_RunRandom_SameSeed_ReproducesSameText()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "lab4tests-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new FileSystemTextStore(
+                Path.Combine(root, "texts"), Path.Combine(root, "results"));
+            var sorter = new WordSorter(store, Algorithms);
+
+            var first = sorter.RunRandom(25, seed: 12345, "quick-improved", ascending: true);
+            var second = sorter.RunRandom(25, seed: 12345, "abc", ascending: true);
+
+            // Тот же сид → тот же текст: один случайный текст можно пересортировать другим алгоритмом.
+            Assert.Equal(
+                first.Words.Select(w => w.Text),
+                second.Words.Select(w => w.Text));
+            Assert.Equal(12345, first.RandomSeed);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WordSorter_RunRandom_ClampsToDemoLimit()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "lab4tests-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new FileSystemTextStore(
+                Path.Combine(root, "texts"), Path.Combine(root, "results"));
+            var sorter = new WordSorter(store, Algorithms);
+            var run = sorter.RunRandom(5000, seed: 7, "abc", ascending: true);
+            Assert.Equal(WordSorter.MaxTraceWords, run.WordCount); // 5000 → зажимается до 100
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    // ---------- каталог готовых текстов ----------
+
+    [Fact]
+    public void TextCatalog_ShowsPreparedTextsAndHidesOversizedGenerated()
+    {
+        Assert.True(TextCatalog.IsVisibleInDemo("text_5.txt", 100));
+        Assert.True(TextCatalog.IsVisibleInDemo("text_100.txt", 100));
+        Assert.False(TextCatalog.IsVisibleInDemo("text_500.txt", 100));   // устаревшие большие тексты
+        Assert.False(TextCatalog.IsVisibleInDemo("text_5000.txt", 100));
+        Assert.True(TextCatalog.IsVisibleInDemo("my_story.txt", 100));    // свой файл пользователя
+    }
+
+    [Fact]
+    public void TextStore_EnsureDefaults_CreatesWholePreparedSet()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "lab4tests-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var store = new FileSystemTextStore(
+                Path.Combine(root, "texts"), Path.Combine(root, "results"));
+            store.EnsureDefaults();
+            var names = store.ListTexts().Select((t) => t.FileName).ToHashSet();
+            foreach (int length in TextGenerator.DefaultLengths)
+                Assert.Contains(TextGenerator.FileNameFor(length), names);
+
+            // Повторный вызов ничего не пересоздаёт (файлы на месте, набор тот же).
+            store.EnsureDefaults();
+            Assert.Equal(TextGenerator.DefaultLengths.Length, store.ListTexts().Count);
         }
         finally
         {
