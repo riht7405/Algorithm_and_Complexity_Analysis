@@ -577,11 +577,10 @@ function setStat(id, value) {
 function syncLog(toStep, animate = true) {
   const list = $("logList");
   const steps = state.plan.steps;
-  if (toStep < state.logStep) {
-    // Пошли назад — перерисовываем журнал с нуля.
-    state.logStep = -1;
-    list.innerHTML = "";
-  }
+  /* Журнал — это все уже сделанные шаги: при переходе назад (клик по строке, «Назад»)
+     ничего не удаляется — между существующими строками просто переключаемся.
+     Дописываются только шаги дальше нарисованных. Очистка журнала происходит
+     лишь при новой трассировке (пути запуска сбрасывают logStep в -1 вместе с innerHTML). */
   const items = [];
   for (let i = Math.max(state.logStep + 1, 0); i <= toStep; i++) {
     if (steps[i].logLine) items.push(steps[i]);
@@ -602,8 +601,16 @@ function syncLog(toStep, animate = true) {
   list.appendChild(fragment);
   // Ограничиваем высоту журнала: старые записи убираем.
   while (list.children.length > 800) list.removeChild(list.firstChild);
-  state.logStep = toStep;
-  if ($("followLog").checked) list.scrollTop = list.scrollHeight;
+  if (toStep > state.logStep) state.logStep = toStep;
+  // Подсветка строки, соответствующей текущему шагу.
+  const prev = list.querySelector(".logLine.current");
+  if (prev) prev.classList.remove("current");
+  const cur = list.querySelector(`.logLine[data-step="${toStep}"]`);
+  if (cur) cur.classList.add("current");
+  if ($("followLog").checked) {
+    if (cur) cur.scrollIntoView({ block: "nearest" });
+    else list.scrollTop = list.scrollHeight;
+  }
 }
 
 function renderProgress(step) {

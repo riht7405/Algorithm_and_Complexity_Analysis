@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261124c">
+  <link rel="stylesheet" href="styles.css?v=20261124d">
 </head>
 <body>
 <header class="topbar">
@@ -285,23 +285,30 @@
           <aside class="benchParams">
             <h3>Параметры замера</h3>
             <label class="field">
-              <span>Алгоритм</span>
-              <select id="wBenchAlgo"></select>
+              <span>Максимальный объём (слов)</span>
+              <input type="number" id="wBenchMax" min="100" max="1000000" step="1" value="100000">
             </label>
             <label class="field">
-              <span>Слов в тексте</span>
-              <input type="number" id="wBenchWords" min="1" max="1000000" step="1" value="1000">
+              <span>Шаг (слов)</span>
+              <input type="number" id="wBenchStep" min="1" max="1000000" step="1" value="10000">
             </label>
             <label class="field">
               <span>Прогонов на точку</span>
-              <input type="number" id="wBenchRuns" min="1" max="50" step="1" value="10">
+              <input type="number" id="wBenchRuns" min="1" max="50" step="1" value="3">
             </label>
-            <button id="wBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить</button>
+            <button id="wBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить серию</button>
             <button id="wBenchClearChartBtn" class="benchBtn benchGray">Очистить график</button>
             <div id="wBenchStatus" class="benchStatus"></div>
           </aside>
           <div class="benchMain">
-            <div id="wChartWrap" class="chartWrap"></div>
+            <div class="chartHead">
+              <span class="chartHint">Колесо мыши — масштаб · перетаскивание — сдвиг графика</span>
+              <button id="wChartResetZoomBtn" class="mini" type="button">⟲ Сбросить масштаб</button>
+            </div>
+            <div id="wChartWrap" class="chartWrap">
+              <canvas id="wChartCanvas" hidden></canvas>
+              <div id="wChartEmpty" class="chartEmpty">Сделай замер — точка появится на графике.</div>
+            </div>
             <div id="wBenchFilterNote" class="benchFilterNote" hidden></div>
             <div class="tableWrap" id="wBenchTable"></div>
             <div class="benchCsvRow"><button id="wBenchCsvBtn" class="mini" hidden>⬇ CSV</button></div>
@@ -318,6 +325,7 @@
               «Построить график» покажет выбранные точки на вкладке «Замер».</p>
             <button id="wHistChartBtn" class="benchBtn benchPrimary">⬒ Построить график для выбранных</button>
             <button id="wHistDeleteBtn" class="benchBtn benchDanger">🗑 Удалить выбранные</button>
+            <button id="wHistDeleteAllBtn" class="benchBtn benchDanger">🗑 Удалить все замеры</button>
             <button id="wHistRefreshBtn" class="benchBtn benchGray">⟳ Обновить список</button>
           </aside>
           <div class="benchMain">
@@ -334,7 +342,10 @@
     «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.</p>
 </footer>
 
-<script src="app.js?v=20261124c"></script>
-<script src="wordtab.js?v=20261124c"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="app.js?v=20261124d"></script>
+<script src="wordtab.js?v=20261124d"></script>
 </body>
 </html>

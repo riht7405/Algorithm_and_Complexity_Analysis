@@ -32,10 +32,13 @@
     benchNextId: 1,
     benchFilter: null,    // Set id строк истории — показывать на графике только их
     histSelected: new Set(),
-    benchRunning: false,
+    benchRunning: false,      // идёт серия замеров
+    benchSeriesCancel: false, // кнопка «Остановить» во время серии
+    chartEpochMs: 0,          // «Очистить график»: дальше на графике только новые замеры
   };
 
   const BENCH_KEY = "lab4.wordBench.v1";
+  let benchChart = null; // текущий график Chart.js (пересоздаётся на каждую отрисовку)
 
   /* ---------------- API ---------------- */
 
@@ -72,7 +75,6 @@
 
     fillTextSelect();
     renderMethods();
-    fillBenchAlgo();
     loadBench();
     renderBenchAll(); // сохранённые замеры показываем сразу при открытии страницы
     await onTextChanged();
@@ -542,10 +544,10 @@
   function syncLog(toStep, animate = true) {
     const list = $("wLogList");
     const steps = state.plan.steps;
-    if (toStep < state.logStep) {
-      state.logStep = -1;
-      list.innerHTML = "";
-    }
+    /* Журнал — это все уже сделанные шаги: при переходе назад (клик по строке, «Назад»)
+       ничего не удаляется — между существующими строками просто переключаемся.
+       Дописываются только шаги дальше нарисованных. Очистка журнала происходит
+       лишь при новой трассировке (пути запуска сбрасывают logStep в -1 вместе с innerHTML). */
     const items = [];
     for (let i = Math.max(state.logStep + 1, 0); i <= toStep; i++) {
       if (steps[i].logLine) items.push(steps[i]);
@@ -565,8 +567,16 @@
     }
     list.appendChild(fragment);
     while (list.children.length > 800) list.removeChild(list.firstChild);
-    state.logStep = toStep;
-    if ($("wFollowLog").checked) list.scrollTop = list.scrollHeight;
+    if (toStep > state.logStep) state.logStep = toStep;
+    // Подсветка строки, соответствующей текущему шагу.
+    const prev = list.querySelector(".logLine.current");
+    if (prev) prev.classList.remove("current");
+    const cur = list.querySelector(`.logLine[data-step="${toStep}"]`);
+    if (cur) cur.classList.add("current");
+    if ($("wFollowLog").checked) {
+      if (cur) cur.scrollIntoView({ block: "nearest" });
+      else list.scrollTop = list.scrollHeight;
+    }
   }
 
   function renderProgress(step) {
@@ -608,9 +618,11 @@
     $("wResultPanel").hidden = false;
   }
 
-  /* ---------------- замеры времени (как в 1-й лабораторной) ----------------
-     Полностью независимы от настроек демонстрации: алгоритм, объём текста и число
-     прогонов выбираются прямо здесь. Каждый «Замерить» — новая запись в истории. */
+  /* ---------------- замеры времени (внешне как в 3-й лабораторной) ----------------
+     Поля «Максимум» и «Шаг»: одна кнопка меряет серию точек для ОБОИХ алгоритмов —
+     от шага до максимума с интервалом «Шаг». Каждая точка — запись в истории.
+     График — Chart.js: оси «Слов в тексте» / «Время (мс)», перетаскивание и
+     масштабирование колесом, кнопка сброса масштаба. */
 
   function loadBench() {
     let rows = [];
@@ -625,18 +637,11 @@
     state.benchRows = rows;
     state.benchNextId = nextId;
     state.histSelected = new Set();
+    state.chartEpochMs = 0; // после загрузки страницы показываем все сохранённые замеры
   }
 
   function saveBench() {
     try { localStorage.setItem(BENCH_KEY, JSON.stringify(state.benchRows)); } catch { /* нет localStorage */ }
-  }
-
-  function fillBenchAlgo() {
-    const sel = $("wBenchAlgo");
-    sel.innerHTML = state.methods
-      .map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.title)}</option>`)
-      .join("");
-    if (state.methods.length > 0) sel.value = state.methods[0].id;
   }
 
   function titleOfAlgo(id) {
@@ -644,11 +649,14 @@
     return m ? m.title : id;
   }
 
-  /* Последний замер для каждой точки (объём + алгоритм) — они идут в таблицу результатов и график. */
+  /* Последний замер для каждой точки (объём + алгоритм) — они идут в таблицу и график.
+     «Очистить график» ставит chartEpochMs: в обычном режиме показываются только замеры,
+     сделанные позже этого момента. Выбранные в истории точки (benchFilter) показываются
+     независимо от очистки. */
   function benchRowsForView() {
     const src = state.benchFilter
       ? state.benchRows.filter((r) => state.benchFilter.has(r.id))
-      : state.benchRows;
+      : state.benchRows.filter((r) => !state.chartEpochMs || Date.parse(r.ts) >= state.chartEpochMs);
     const latest = new Map();
     for (const r of src) {
       const key = `${r.wordCount}|${r.algorithm}`;
@@ -680,35 +688,39 @@
     if (rows.length === 0) {
       $("wBenchTable").innerHTML = state.benchFilter
         ? '<p class="hint">Среди выбранных точек нет замеров.</p>'
-        : '<p class="hint">Пока нет замеров. Выбери алгоритм, объём текста и число прогонов — и нажми «Замерить».</p>';
+        : '<p class="hint">Пока нет замеров. Задай максимальный объём и шаг — и нажми «Замерить серию».</p>';
     } else {
-      // Отношение к QuickSort по среднему времени (на одинаковой длине).
-      const quickAvg = new Map(
-        rows.filter((r) => r.algorithm === "quick-improved").map((r) => [r.wordCount, r.avgMs]));
-
+      // Таблица как в 3-й лабораторной: одна строка на объём текста, оба алгоритма рядом.
+      const byLen = new Map();
+      for (const r of rows) {
+        const e = byLen.get(r.wordCount) || {};
+        e[r.algorithm] = r;
+        byLen.set(r.wordCount, e);
+      }
+      const lengths = [...byLen.keys()].sort((a, b) => a - b);
       const head = `<tr>
-        <th>Слов в тексте</th><th>Алгоритм</th><th>Прогонов</th>
-        <th>Среднее, мс</th><th>Мин, мс</th><th>Макс, мс</th>
-        <th>Сравнений</th><th>Перестановок</th><th>К QuickSort</th>
+        <th>Слов в тексте</th>
+        <th>${escapeHtml(titleOfAlgo("quick-improved"))}, мс (сред.)</th>
+        <th>${escapeHtml(titleOfAlgo("abc"))}, мс (сред.)</th>
+        <th>ABC / QuickSort</th>
+        <th>Прогонов на точку</th>
       </tr>`;
-      const body = rows.map((r) => {
-        let ratio = "";
-        if (r.algorithm !== "quick-improved" && quickAvg.has(r.wordCount) && quickAvg.get(r.wordCount) > 0) {
-          const x = r.avgMs / quickAvg.get(r.wordCount);
+      const body = lengths.map((L) => {
+        const e = byLen.get(L);
+        const q = e["quick-improved"];
+        const a = e["abc"];
+        let ratio = "—";
+        if (q && a && q.avgMs > 0) {
+          const x = a.avgMs / q.avgMs;
           ratio = `×${x >= 10 ? x.toFixed(0) : x.toFixed(2)}`;
-        } else if (r.algorithm === "quick-improved") {
-          ratio = "—";
         }
+        const runsCell = q && a && q.runs === a.runs ? q.runs : "—";
         return `<tr>
-          <td class="num">${fmtNum(r.wordCount)}</td>
-          <td>${escapeHtml(r.algorithmTitle)}</td>
-          <td class="num">${r.runs}</td>
-          <td class="num">${fmtMs(r.avgMs)}</td>
-          <td class="num">${fmtMs(r.minMs)}</td>
-          <td class="num">${fmtMs(r.maxMs)}</td>
-          <td class="num">${fmtNum(r.comparisons)}</td>
-          <td class="num">${fmtNum(r.moves)}</td>
+          <td class="num">${fmtNum(L)}</td>
+          <td class="num">${q ? fmtMs(q.avgMs) : "—"}</td>
+          <td class="num">${a ? fmtMs(a.avgMs) : "—"}</td>
           <td class="num">${ratio}</td>
+          <td class="num">${runsCell}</td>
         </tr>`;
       }).join("");
       $("wBenchTable").innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
@@ -716,28 +728,57 @@
     renderChartSafe(rows);
   }
 
+  /* Серия замеров (как в 3-й лабораторной): для каждого объёма от «Шага» до «Максимума»
+     с интервалом «Шаг» меряем ОБА алгоритма по `runs` прогонов. Точки появляются на
+     графике по мере готовности. Повторное нажатие кнопки во время серии останавливает
+     её после текущей точки. */
   async function runBench() {
-    if (state.benchRunning) return;
-    const algo = $("wBenchAlgo").value;
-    const words = clampInt($("wBenchWords"), 1, 1000000, 1000);
-    const runs = clampInt($("wBenchRuns"), 1, 50, 10);
+    if (state.benchRunning) { // кнопка работает как «Остановить»
+      state.benchSeriesCancel = true;
+      $("wBenchStatus").textContent = "Останавливаю после текущей точки…";
+      return;
+    }
+    const max = clampInt($("wBenchMax"), 100, 1000000, 100000);
+    const step = clampInt($("wBenchStep"), 1, max, 10000);
+    const runs = clampInt($("wBenchRuns"), 1, 50, 3);
+    const lengths = [];
+    for (let L = step; L <= max; L += step) lengths.push(L);
+    if (lengths.length === 0) {
+      $("wBenchStatus").textContent = "Шаг больше максимального объёма — нечего мерить.";
+      return;
+    }
     state.benchRunning = true;
-    $("wBenchRunBtn").disabled = true;
+    state.benchSeriesCancel = false;
+    $("wBenchRunBtn").textContent = "■ Остановить";
     const t0 = performance.now();
-    $("wBenchStatus").textContent =
-      `Замеряю: ${fmtNum(words)} слов · ${titleOfAlgo(algo)} · ${runs} прогонов + прогрев…`;
+    let done = 0;
     try {
-      const row = await post("/api/word-sort/bench", { algorithm: algo, runs, wordCount: words });
-      addBenchRow(row);
+      for (const L of lengths) {
+        if (state.benchSeriesCancel) {
+          $("wBenchStatus").textContent =
+            `Остановлено: выполнено точек ${done} из ${lengths.length}. Замеры сохранены в историю.`;
+          return; // finally сбросит состояние кнопки
+        }
+        $("wBenchStatus").textContent =
+          `Точка ${done + 1} из ${lengths.length}: ${fmtNum(L)} слов · ${runs} прогонов на алгоритм…`;
+        for (const algo of ["quick-improved", "abc"]) {
+          if (state.benchSeriesCancel) break;
+          const row = await post("/api/word-sort/bench", { algorithm: algo, runs, wordCount: L });
+          addBenchRow(row);
+        }
+        done++;
+        renderBenchAll(); // обе точки объёма готовы — обновляем график и таблицу
+      }
       $("wBenchStatus").textContent =
-        `Готово за ${((performance.now() - t0) / 1000).toFixed(1)} с: ${fmtNum(row.wordCount)} слов · ` +
-        `${row.algorithmTitle} · среднее ${fmtMs(row.avgMs)} мс (мин ${fmtMs(row.minMs)}, макс ${fmtMs(row.maxMs)}). ` +
-        "Точка добавлена в таблицу и в историю.";
+        `Готово за ${((performance.now() - t0) / 1000).toFixed(1)} с: ${done} точек × 2 алгоритма · ` +
+        `${runs} прогонов на точку. Все замеры сохранены в историю.`;
     } catch (err) {
-      $("wBenchStatus").textContent = "Ошибка: " + err.message;
+      $("wBenchStatus").textContent =
+        "Ошибка: " + err.message + " (выполнено точек: " + done + " из " + lengths.length + ")";
     } finally {
       state.benchRunning = false;
-      $("wBenchRunBtn").disabled = false;
+      state.benchSeriesCancel = false;
+      $("wBenchRunBtn").textContent = "▶ Замерить серию";
     }
   }
 
@@ -746,8 +787,7 @@
     row.ts = new Date().toISOString();
     if (!Array.isArray(row.times)) row.times = [];
     state.benchRows.push(row);
-    saveBench();
-    renderBenchAll(); // график перерисовывается после каждого замера
+    saveBench(); // отрисовка — когда готовы обе точки очередного объёма (в runBench)
   }
 
   function renderHistory() {
@@ -809,80 +849,115 @@
     try {
       renderChart(rows);
     } catch (err) {
-      const wrap = $("wChartWrap");
-      wrap.hidden = false;
-      wrap.innerHTML = '<p class="hint">Не удалось построить график: ' +
-        escapeHtml((err && err.message) || String(err)) + "</p>";
+      const canvas = $("wChartCanvas");
+      const empty = $("wChartEmpty");
+      if (benchChart) { benchChart.destroy(); benchChart = null; }
+      canvas.hidden = true;
+      empty.hidden = false;
+      empty.textContent = "Не удалось построить график: " + ((err && err.message) || String(err));
     }
   }
 
-  /* Простой SVG-график: среднее время (мс) по объёму текста, линия на каждый алгоритм. */
+  /* График Chart.js (внешне как в 3-й лабораторной): оси «Слов в тексте» и
+     «Время (мс)», точки с линиями на каждый алгоритм, перетаскивание мышью и
+     масштабирование колесом (chartjs-plugin-zoom), кнопка сброса масштаба. */
   function renderChart(inputRows) {
-    const wrap = $("wChartWrap");
-    // Чистим данные: в SVG не должны попасть NaN/пустые значения (например, из старых записей истории).
+    if (typeof Chart === "undefined") {
+      throw new Error("библиотека Chart.js не загрузилась (подключается с CDN — нужен интернет)");
+    }
+    const canvas = $("wChartCanvas");
+    const empty = $("wChartEmpty");
+    // Чистим данные: в график не должны попасть NaN/пустые значения.
     const rows = (inputRows || [])
       .map((r) => ({ ...r, wordCount: Number(r.wordCount), avgMs: Number(r.avgMs) }))
       .filter((r) => Number.isFinite(r.wordCount) && Number.isFinite(r.avgMs) && r.wordCount > 0 && r.avgMs >= 0);
 
-    const W = 640, H = 280, padL = 64, padR = 16, padT = 22, padB = 40;
-    const frame = (inner) => `
-      <div class="chartLegendRow"><span class="chartTitle">Время сортировки (среднее), мс</span></div>
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График времени сортировки">
-        <rect x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="#fcfcfe" stroke="#e5e7eb"/>
-        ${inner}
-        <text x="${(padL + W - padR) / 2}" y="${H - 6}" text-anchor="middle" class="axLabel">слов в тексте</text>
-      </svg>`;
-
     if (rows.length === 0) {
-      // Замеров ещё нет — рисуем рамку графика с подсказкой вместо пустого места.
-      wrap.innerHTML = frame(
-        `<text x="${(padL + W - padR) / 2}" y="${H / 2 - 8}" text-anchor="middle" class="axLabel" font-size="14">Сделай замер — точка появится на графике</text>`);
-      wrap.hidden = false;
+      if (benchChart) { benchChart.destroy(); benchChart = null; }
+      canvas.hidden = true;
+      empty.hidden = false;
+      empty.textContent = state.benchFilter
+        ? "Среди выбранных точек нет замеров."
+        : (state.chartEpochMs
+          ? "График очищен. Сделай новый замер — точки появятся здесь. Старые можно вернуть через «Построить график для выбранных»."
+          : "Сделай замер — точка появится на графике.");
       return;
     }
 
-    const lengths = [...new Set(rows.map((r) => r.wordCount))].sort((a, b) => a - b);
-    const algos = [...new Set(rows.map((r) => r.algorithm))];
-
-    const maxMs = Math.max(...rows.map((r) => r.avgMs)) * 1.1 || 1;
-    const x = (i) => padL + (i * (W - padL - padR)) / Math.max(1, lengths.length - 1);
-    const y = (v) => H - padB - (Math.min(v, maxMs) / maxMs) * (H - padT - padB);
-
-    const grid = [];
-    for (let g = 0; g <= 4; g++) {
-      const v = (maxMs / 4) * g;
-      const gy = y(v);
-      grid.push(`<line x1="${padL}" y1="${gy}" x2="${W - padR}" y2="${gy}" stroke="#e5e7eb" stroke-width="1"/>
-        <text x="${padL - 6}" y="${gy + 3.5}" text-anchor="end" class="axLabel">${fmtMs(v)}</text>`);
-    }
-    // На оси X много больших чисел не уместятся — подписываем через шаг.
-    const step = Math.ceil(lengths.length / 8);
-    const xLabels = lengths.map((L, i) => (i % step === 0 || i === lengths.length - 1
-      ? `<text x="${x(i)}" y="${H - padB + 16}" text-anchor="middle" class="axLabel">${fmtNum(L)}</text>`
-      : "")).join("");
+    empty.hidden = true;
+    canvas.hidden = false;
 
     const colors = { "quick-improved": "#4f46e5", "abc": "#059669" };
-    const series = algos.map((algo) => {
-      const pts = lengths.map((L, i) => {
-        const row = rows.find((r) => r.algorithm === algo && r.wordCount === L);
-        return row ? { px: x(i), py: y(row.avgMs), v: row.avgMs } : null;
-      }).filter(Boolean);
-      if (pts.length === 0) return "";
-      const line = pts.length >= 2
-        ? `<path d="${pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(" ")}" fill="none" stroke="${colors[algo] || "#6b7280"}" stroke-width="2.5"/>`
-        : "";
-      const dots = pts.map((p) =>
-        `<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4" fill="${colors[algo] || "#6b7280"}"><title>${escapeHtml(titleOfAlgo(algo))}: ${fmtMs(p.v)} мс</title></circle>`).join("");
-      return line + dots;
-    }).join("");
+    const lengths = [...new Set(rows.map((r) => r.wordCount))].sort((a, b) => a - b);
+    const algos = [...new Set(rows.map((r) => r.algorithm))];
+    const datasets = algos.map((algo) => ({
+      label: titleOfAlgo(algo),
+      data: lengths
+        .filter((L) => rows.some((r) => r.algorithm === algo && r.wordCount === L))
+        .map((L) => {
+          const row = rows.find((r) => r.algorithm === algo && r.wordCount === L);
+          return { x: L, y: row.avgMs };
+        }),
+      showLine: true,
+      tension: 0,
+      borderColor: colors[algo] || "#6b7280",
+      backgroundColor: colors[algo] || "#6b7280",
+      pointRadius: 3,
+      pointHoverRadius: 6,
+      borderWidth: 2,
+    }));
 
-    const legend = algos.map((algo) =>
-      `<span class="chartLegend"><span class="dot" style="background:${colors[algo] || "#6b7280"}"></span>${escapeHtml(titleOfAlgo(algo))}</span>`).join("");
-
-    wrap.innerHTML = `
-      <div class="chartLegendRow">${legend}<span class="chartTitle">Время сортировки (среднее), мс</span></div>
-      ${frame(grid.join("") + xLabels + series)}`;
-    wrap.hidden = false;
+    if (benchChart) benchChart.destroy();
+    benchChart = new Chart(canvas.getContext("2d"), {
+      type: "scatter",
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.6,
+        animation: { duration: 200 },
+        interaction: { mode: "nearest", intersect: false },
+        scales: {
+          x: {
+            type: "linear",
+            beginAtZero: true,
+            title: { display: true, text: "Слов в тексте" },
+            grid: { color: "#e5e7eb" },
+            ticks: { callback: (v) => Number(v).toLocaleString("ru-RU") },
+          },
+          y: {
+            type: "linear",
+            beginAtZero: true,
+            title: { display: true, text: "Время (мс)" },
+            grid: { color: "#e5e7eb" },
+            ticks: {
+              callback: (v) => Number(v).toLocaleString("ru-RU", { maximumFractionDigits: 2 }),
+            },
+          },
+        },
+        plugins: {
+          legend: {
+            position: "bottom",
+            align: "end",
+            labels: { usePointStyle: true, boxWidth: 10, padding: 16 },
+          },
+          tooltip: {
+            callbacks: {
+              title: (ctxs) => "Слов: " + Number(ctxs[0].parsed.x).toLocaleString("ru-RU"),
+              label: (ctx) => `${ctx.dataset.label}: ${fmtMs(ctx.parsed.y)} мс`,
+            },
+          },
+          zoom: {
+            pan: { enabled: true, mode: "xy" },
+            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "xy" },
+            limits: {
+              x: { min: "original", max: "original" },
+              y: { min: "original", max: "original" },
+            },
+          },
+        },
+      },
+    });
   }
 
   function downloadCsv() {
@@ -961,12 +1036,19 @@
     document.querySelectorAll("#wBenchTabs .benchTab").forEach((b) =>
       b.addEventListener("click", () => benchTab(b.dataset.btab)));
 
-    // Замер: один алгоритм, свой объём, своё число прогонов — независимо от настроек выше.
+    // Замер серии: от «Шага» до «Максимума», оба алгоритма; во время серии кнопка = «Остановить».
     $("wBenchRunBtn").addEventListener("click", runBench);
     $("wBenchClearChartBtn").addEventListener("click", () => {
       state.benchFilter = null;
+      // Полная очистка: график пуст; дальше на нём появятся только новые замеры.
+      // Старые возвращаются через «Построить график для выбранных».
+      state.chartEpochMs = state.benchRows.length > 0 ? Date.now() + 1 : 0;
       renderBenchAll();
-      $("wBenchStatus").textContent = "График очищен: показаны все точки.";
+      $("wBenchStatus").textContent =
+        "График полностью очищен. Новые замеры появятся на нём заново; старые можно вернуть через «Построить график для выбранных».";
+    });
+    $("wChartResetZoomBtn").addEventListener("click", () => {
+      if (benchChart && benchChart.resetZoom) benchChart.resetZoom();
     });
     $("wBenchCsvBtn").addEventListener("click", downloadCsv);
 
@@ -980,6 +1062,23 @@
       state.benchFilter = new Set(state.histSelected);
       benchTab("run");
       renderBenchAll();
+    });
+    $("wHistDeleteAllBtn").addEventListener("click", () => {
+      if (state.benchRows.length === 0) {
+        $("wBenchStatus").textContent = "История и так пустая.";
+        benchTab("history");
+        return;
+      }
+      if (!confirm(`Удалить все замеры (${state.benchRows.length} шт.)? Действие необратимо.`)) return;
+      state.benchRows = [];
+      state.benchNextId = 1;
+      state.histSelected.clear();
+      state.benchFilter = null;
+      state.chartEpochMs = 0;
+      saveBench();
+      renderBenchAll();
+      $("wBenchStatus").textContent = "Все замеры удалены.";
+      benchTab("history");
     });
     $("wHistDeleteBtn").addEventListener("click", () => {
       if (state.histSelected.size === 0) {
