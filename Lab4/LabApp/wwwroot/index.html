@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261124d">
+  <link rel="stylesheet" href="styles.css?v=20261124e">
 </head>
 <body>
 <header class="topbar">
@@ -285,6 +285,10 @@
           <aside class="benchParams">
             <h3>Параметры замера</h3>
             <label class="field">
+              <span>Алгоритм</span>
+              <select id="wBenchAlgo"></select>
+            </label>
+            <label class="field">
               <span>Максимальный объём (слов)</span>
               <input type="number" id="wBenchMax" min="100" max="1000000" step="1" value="100000">
             </label>
@@ -296,7 +300,7 @@
               <span>Прогонов на точку</span>
               <input type="number" id="wBenchRuns" min="1" max="50" step="1" value="3">
             </label>
-            <button id="wBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить серию</button>
+            <button id="wBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить</button>
             <button id="wBenchClearChartBtn" class="benchBtn benchGray">Очистить график</button>
             <div id="wBenchStatus" class="benchStatus"></div>
           </aside>
@@ -307,7 +311,7 @@
             </div>
             <div id="wChartWrap" class="chartWrap">
               <canvas id="wChartCanvas" hidden></canvas>
-              <div id="wChartEmpty" class="chartEmpty">Сделай замер — точка появится на графике.</div>
+              <div id="wChartEmpty" class="chartEmpty">Сделай замер — на графике появятся его точки.</div>
             </div>
             <div id="wBenchFilterNote" class="benchFilterNote" hidden></div>
             <div class="tableWrap" id="wBenchTable"></div>
@@ -345,7 +349,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="app.js?v=20261124d"></script>
-<script src="wordtab.js?v=20261124d"></script>
+<script src="app.js?v=20261124e"></script>
+<script src="wordtab.js?v=20261124e"></script>
 </body>
 </html>
