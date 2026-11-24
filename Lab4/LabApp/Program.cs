@@ -1,6 +1,8 @@
 using LabApp.Api;
 using LabApp.Core;
 using LabApp.Core.ExternalSort;
+using LabApp.Core.Texts;
+using LabApp.Core.WordSort;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://localhost:5000");
@@ -17,6 +19,22 @@ builder.Services.AddSingleton<IExternalSortStrategy, NaturalMergeStrategy>();
 builder.Services.AddSingleton<IExternalSortStrategy, MultiwayMergeStrategy>();
 builder.Services.AddSingleton<ExternalSorter>();
 
+// Тексты для задания 3 лежат в Data/texts, результаты — в общей папке Data/results.
+builder.Services.AddSingleton<ITextStore>(sp =>
+{
+    string dataDir = Path.Combine(
+        sp.GetRequiredService<IWebHostEnvironment>().ContentRootPath, "Data");
+    return new FileSystemTextStore(
+        Path.Combine(dataDir, "texts"), Path.Combine(dataDir, "results"));
+});
+
+// Алгоритмы сортировки слов (задание 3).
+// Чтобы добавить новый: реализуй IWordSortAlgorithm и зарегистрируй его здесь —
+// он сразу появится в интерфейсе, в API и в замерах времени.
+builder.Services.AddSingleton<IWordSortAlgorithm, QuickSortImproved>();
+builder.Services.AddSingleton<IWordSortAlgorithm, AbcSort>();
+builder.Services.AddSingleton<WordSorter>();
+
 var app = builder.Build();
 
 app.UseDefaultFiles();
@@ -31,6 +49,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", utc = DateTimeOffset.UtcNow }));
 
 app.MapSortEndpoints();
+app.MapWordSortEndpoints();
 
 app.Run();
 

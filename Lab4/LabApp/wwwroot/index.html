@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261121">
+  <link rel="stylesheet" href="styles.css?v=20261124">
 </head>
 <body>
 <header class="topbar">
@@ -150,11 +150,157 @@
     </section>
   </section>
 
-  <!-- Задание 3 -->
+  <!-- Задание 3: сортировка слов текста -->
   <section class="tabPage" id="tab-task3">
-    <div class="panel placeholder">
-      <h2>Задание 3. Подсчёт слов и сравнение алгоритмов</h2>
+
+    <div class="layout">
+
+      <!-- Панель управления -->
+      <aside class="panel controls">
+        <h2>Настройка</h2>
+
+        <label class="field">
+          <span>Текст (файл в <code>Data/texts</code>)</span>
+          <select id="wTextSelect"></select>
+        </label>
+
+        <div class="field">
+          <span>Сгенерировать текст</span>
+          <div class="genRow">
+            <select id="wGenLength">
+              <option value="100">100 слов</option>
+              <option value="500">500 слов</option>
+              <option value="1000">1000 слов</option>
+              <option value="2000">2000 слов</option>
+              <option value="5000" selected>5000 слов</option>
+              <option value="10000">10000 слов</option>
+            </select>
+            <button id="wGenBtn">Создать</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span>Алгоритм сортировки</span>
+          <div id="wMethodList" class="methods"></div>
+        </div>
+
+        <div class="field">
+          <span>Порядок</span>
+          <div class="segmented">
+            <button id="wAscBtn" class="seg active">▲ A → z</button>
+            <button id="wDescBtn" class="seg">▼ z → A</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Слов в демонстрации: <b id="wLimitVal">60</b> <span class="fieldHint">(полный текст — в замерах времени)</span></span>
+          <input type="range" id="wLimitRange" min="10" max="100" step="5" value="60">
+        </label>
+
+        <div id="wErrorBox" class="errorBox" hidden></div>
+      </aside>
+
+      <!-- Сцена визуализации -->
+      <section class="panel stage">
+        <div class="stageHead">
+          <div id="wPhaseBadge" class="phaseBadge" hidden></div>
+          <div class="progressWrap"><div id="wProgressBar"></div></div>
+          <div id="wStepCounter" class="stepCounter">шаг 0 / 0</div>
+        </div>
+
+        <div class="playbackBar">
+          <button id="wPlayBtn" class="primary">▶ Запустить</button>
+          <button id="wStepBtn">Шаг ⏭</button>
+          <button id="wEndBtn" title="Сразу показать последний шаг сортировки">⇥ В конец</button>
+          <button id="wBackBtn" disabled>⏮ Назад</button>
+          <button id="wResetBtn" disabled>↺ Сброс</button>
+          <label class="delayInline">
+            <span>задержка</span>
+            <input type="range" id="wDelayRange" min="50" max="1500" step="50" value="300">
+            <b id="wDelayVal">300</b>&nbsp;мс
+          </label>
+        </div>
+
+        <div id="wScene" class="wScene">
+          <div class="emptyStage">Выбери текст и нажми «Запустить».</div>
+        </div>
+
+        <div id="wLegend" class="wLegend" hidden>
+          <span class="chip wchip wCmp">сравнение</span>
+          <span class="chip wchip wPivot">опорное</span>
+          <span class="chip wchip wMem">в памяти</span>
+          <span class="chip wchip wPlaced">на своём месте</span>
+          <span class="chip wchip wRange">текущий кусок</span>
+        </div>
+
+        <div id="wMemoryBox" class="memoryBox" hidden></div>
+
+        <div id="wDescBox" class="descBox">
+          Задание 3: текст разбивается на слова, слова сортируются по алфавиту, затем по
+          отсортированному массиву считается, сколько раз встречается каждое слово.
+          Нажми «Запустить» — покажу сортировку по шагам.
+        </div>
+
+        <div id="wCounterRow" class="counterRow" hidden></div>
+      </section>
+
+      <!-- Журнал -->
+      <aside class="panel logPanel">
+        <div class="logHead">
+          <h2>Журнал сравнений и перестановок</h2>
+          <div class="logActions">
+            <button id="wLogDownBtn" class="mini" title="Пролистать журнал вниз">↓ Вниз</button>
+            <label class="check small">
+              <input type="checkbox" id="wFollowLog" checked>
+              <span>Следить</span>
+            </label>
+          </div>
+        </div>
+        <div id="wLogList" class="logList">
+          <div class="logEmpty">Журнал появится после запуска сортировки.</div>
+        </div>
+      </aside>
     </div>
+
+    <!-- Исходный текст -->
+    <section class="panel tableView" id="wTextPanel">
+      <h2>Исходный текст <span id="wTextCaption" class="caption"></span></h2>
+      <div id="wTextPreview" class="textPreview"><p class="hint">Выбери текст.</p></div>
+    </section>
+
+    <!-- Результат: отсортированные слова и подсчёт -->
+    <section class="panel tableView" id="wResultPanel" hidden>
+      <h2>Подсчёт слов <span id="wResultCaption" class="caption"></span></h2>
+      <p class="hint" id="wCountNote"></p>
+      <h3 class="wSubhead">Отсортированные слова (демонстрация)</h3>
+      <div id="wSortedChips" class="chips wSortedChips"></div>
+      <div class="resultActions">
+        <a id="wResultDownload" class="buttonLink" href="#" download>⬇ Скачать файл подсчёта</a>
+      </div>
+      <div class="tableWrap" id="wCountsTable"></div>
+    </section>
+
+    <!-- Замеры времени -->
+    <section class="panel tableView" id="wBenchPanel">
+      <h2>Замеры времени <span class="caption">как в 1-й лабораторной: прогрев + несколько прогонов с Stopwatch</span></h2>
+      <div class="benchControls">
+        <label class="benchField"><span>Прогонов на точку:</span>
+          <input type="number" id="wBenchRuns" min="1" max="10" value="5"></label>
+        <label class="benchField"><span>Свой объём, слов:</span>
+          <input type="number" id="wBenchCustom" min="10" max="100000" placeholder="напр. 3000"></label>
+        <button id="wBenchCustomBtn">⏱ Замерить свой объём</button>
+        <button id="wBenchFileBtn">⏱ Замерить текст из списка</button>
+        <button id="wBenchRunBtn" class="primary">▶ Провести серию (100…5000)</button>
+        <button id="wBenchCsvBtn" class="mini" hidden>⬇ CSV</button>
+        <button id="wBenchClearBtn" class="mini danger">Очистить</button>
+      </div>
+      <div id="wBenchStatus" class="benchStatus"></div>
+      <div class="tableWrap" id="wBenchTable"></div>
+      <div id="wChartWrap" class="chartWrap" hidden></div>
+      <p class="hint">Замеряем время сортировки всех слов текста (подсчёт вхождений в замер не входит).
+        Тексты стандартных длин создаются в <code>Data/texts</code> автоматически. Результаты серии
+        сохраняются в браузере и не пропадают после обновления страницы.</p>
+    </section>
   </section>
 </main>
 
@@ -163,6 +309,7 @@
     «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.</p>
 </footer>
 
-<script src="app.js?v=20261121"></script>
+<script src="app.js?v=20261124"></script>
+<script src="wordtab.js?v=20261124"></script>
 </body>
 </html>

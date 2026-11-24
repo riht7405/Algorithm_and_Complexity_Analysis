@@ -12,6 +12,15 @@ const TAB_SUBTITLES = {
   task3: "Подсчёт слов и сравнение алгоритмов",
 };
 
+/* Примечание в подвале страницы — своё для каждой вкладки. */
+const TAB_NOTES = {
+  task2: `Внешняя сортировка: данные лежат в файле, в памяти держим лишь 1–4 значения — остальное живёт на
+    «лентах» (вспомогательных файлах). Файл результата пишется в <code>Data/results/</code>.`,
+  task3: `Задание 3: текст разбивается на слова; слова сортируются QuickSort (улучшенный) и ABC-сортировкой;
+    по отсортированному массиву считается, сколько раз встречается каждое слово. Замеры времени — как в
+    1-й лабораторной: прогрев, затем несколько прогонов с <code>Stopwatch</code>; в таблице — среднее, минимум и максимум.`,
+};
+
 const state = {
   tables: [],
   methods: [],
@@ -825,8 +834,10 @@ function bindControls() {
     document.querySelectorAll(".tabPage").forEach((p) => p.classList.toggle("active", p.id === `tab-${btn.dataset.tab}`));
     const sub = TAB_SUBTITLES[btn.dataset.tab];
     if (sub) $("brandSub").textContent = `Лабораторная работа №4 · ${sub}`;
-    // Примечание про внешнюю сортировку относится только к заданию 2.
-    $("pageNote").hidden = btn.dataset.tab !== "task2";
+    // Примечание в подвале — своё для каждой вкладки (см. TAB_NOTES).
+    const note = TAB_NOTES[btn.dataset.tab] || "";
+    $("pageNote").innerHTML = note;
+    $("pageNote").hidden = note === "";
   });
 }
 

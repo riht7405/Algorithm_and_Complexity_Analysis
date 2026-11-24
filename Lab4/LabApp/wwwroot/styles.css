@@ -440,3 +440,159 @@ th.histCheck, td.histCheck { width: 30px; text-align: center; white-space: nowra
   .tapeArea { grid-template-columns: 1fr; }
   .stage { min-height: 0; }
 }
+
+/* ==================== Задание 3: сортировка слов текста ==================== */
+
+/* Панель управления */
+
+.genRow { display: flex; gap: 8px; }
+.genRow select { flex: 1; min-width: 0; }
+.genRow button { flex: none; }
+.fieldHint { color: var(--muted); font-weight: 400; font-size: 11.5px; }
+
+/* Сцена: массив слов и корзины */
+
+.wScene { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
+
+.wArrayWrap {
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fcfcfe;
+  overflow-x: auto;
+}
+.wArrayTitle { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; font-weight: 700; }
+
+.wchip { transition: background .12s, border-color .12s, box-shadow .12s; }
+.wchip.wRange { background: var(--accent-soft); border-color: var(--accent-line); }
+.wchip.wCmp {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  font-weight: 700; box-shadow: 0 0 0 3px var(--accent-line);
+}
+.wchip.wSwap {
+  background: var(--good); border-color: var(--good); color: #fff;
+  font-weight: 700; box-shadow: 0 0 0 3px #a7f3d0;
+  animation: wPop .3s;
+}
+.wchip.wPivot {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9); border-color: #7c3aed; color: #fff;
+  font-weight: 700; box-shadow: 0 0 0 3px #ddd6fe;
+}
+.wchip.wMem {
+  background: var(--warn-soft); border-color: var(--warn); color: #92400e; font-weight: 700;
+  box-shadow: 0 0 0 2px #fde68a;
+}
+.wchip.wPlaced {
+  background: var(--good-soft); border-color: var(--good); color: var(--good);
+}
+.wchip.wSmall { font-size: 11px; padding: 2px 6px; max-width: 130px; }
+
+@keyframes wPop {
+  0% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Легенда подсветок */
+
+.wLegend {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  font-size: 11.5px; color: var(--muted);
+}
+.wLegend .chip { cursor: default; }
+
+/* Корзины ABC-сортировки */
+
+.wBucketNote { font-size: 12px; color: var(--muted); }
+
+.wBuckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+}
+
+.bucket {
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 7px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bucket.active { border-color: var(--accent); background: var(--accent-soft); }
+.bucketLetter {
+  font-weight: 800; font-size: 12.5px; color: var(--accent);
+  border-bottom: 1px dashed var(--accent-line); padding-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bucketChips {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  max-height: 150px; overflow-y: auto; overflow-x: hidden;
+  align-content: flex-start;
+}
+
+/* Исходный текст */
+
+.textPreview {
+  max-height: 240px;
+  overflow: auto;
+  background: #fcfcfe;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Результат: подсчёт слов */
+
+.wSubhead { font-size: 13.5px; margin: 14px 0 8px; }
+.wSortedChips { max-height: 150px; overflow-y: auto; padding: 2px 0; }
+
+table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cntCell { min-width: 140px; }
+.cntBar {
+  display: inline-block;
+  height: 9px;
+  min-width: 4px;
+  background: linear-gradient(90deg, var(--accent), #7c3aed);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.cntTruncated td { color: var(--muted); font-style: italic; font-size: 12px; }
+
+/* Замеры времени */
+
+.benchControls {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin: 8px 0 4px;
+}
+.benchField { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.benchField input[type="number"] {
+  width: 88px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px;
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--card);
+}
+.benchStatus { font-size: 12.5px; color: var(--muted); min-height: 18px; margin: 2px 0 6px; }
+
+.chartWrap { margin-top: 14px; }
+.chartWrap svg { width: 100%; height: auto; display: block; max-width: 720px; }
+.axLabel { font-size: 11px; fill: var(--muted); font-family: inherit; }
+.chartLegendRow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  margin-bottom: 6px; font-size: 12.5px;
+}
+.chartLegend { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.chartLegend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.chartTitle { color: var(--muted); font-size: 12px; }
+
+/* Узкие экраны: корзины и сцену оставляем читаемыми */
+
+@media (max-width: 760px) {
+  .wBuckets { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  .wArrayWrap { padding: 8px; }
+  .benchControls { gap: 8px; }
+  .benchField input[type="number"] { width: 72px; }
+}
