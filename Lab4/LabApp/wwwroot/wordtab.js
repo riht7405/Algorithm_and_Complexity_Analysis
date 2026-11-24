@@ -74,6 +74,7 @@
     renderMethods();
     fillBenchAlgo();
     loadBench();
+    renderBenchAll(); // сохранённые замеры показываем сразу при открытии страницы
     await onTextChanged();
   }
 
@@ -557,6 +558,8 @@
       const div = document.createElement("div");
       div.className = `logLine ${st.logKind}` + (animate ? " fresh" : "");
       div.textContent = st.logLine;
+      div.dataset.step = st.index;             // клик по строке → показать этот шаг
+      div.title = "Показать этот шаг";
       if (animate) div.addEventListener("animationend", () => div.classList.remove("fresh"), { once: true });
       fragment.appendChild(div);
     }
@@ -678,42 +681,39 @@
       $("wBenchTable").innerHTML = state.benchFilter
         ? '<p class="hint">Среди выбранных точек нет замеров.</p>'
         : '<p class="hint">Пока нет замеров. Выбери алгоритм, объём текста и число прогонов — и нажми «Замерить».</p>';
-      $("wChartWrap").hidden = true;
-      $("wChartWrap").innerHTML = "";
-      return;
-    }
+    } else {
+      // Отношение к QuickSort по среднему времени (на одинаковой длине).
+      const quickAvg = new Map(
+        rows.filter((r) => r.algorithm === "quick-improved").map((r) => [r.wordCount, r.avgMs]));
 
-    // Отношение к QuickSort по среднему времени (на одинаковой длине).
-    const quickAvg = new Map(
-      rows.filter((r) => r.algorithm === "quick-improved").map((r) => [r.wordCount, r.avgMs]));
-
-    const head = `<tr>
-      <th>Слов в тексте</th><th>Алгоритм</th><th>Прогонов</th>
-      <th>Среднее, мс</th><th>Мин, мс</th><th>Макс, мс</th>
-      <th>Сравнений</th><th>Перестановок</th><th>К QuickSort</th>
-    </tr>`;
-    const body = rows.map((r) => {
-      let ratio = "";
-      if (r.algorithm !== "quick-improved" && quickAvg.has(r.wordCount) && quickAvg.get(r.wordCount) > 0) {
-        const x = r.avgMs / quickAvg.get(r.wordCount);
-        ratio = `×${x >= 10 ? x.toFixed(0) : x.toFixed(2)}`;
-      } else if (r.algorithm === "quick-improved") {
-        ratio = "—";
-      }
-      return `<tr>
-        <td class="num">${fmtNum(r.wordCount)}</td>
-        <td>${escapeHtml(r.algorithmTitle)}</td>
-        <td class="num">${r.runs}</td>
-        <td class="num">${fmtMs(r.avgMs)}</td>
-        <td class="num">${fmtMs(r.minMs)}</td>
-        <td class="num">${fmtMs(r.maxMs)}</td>
-        <td class="num">${fmtNum(r.comparisons)}</td>
-        <td class="num">${fmtNum(r.moves)}</td>
-        <td class="num">${ratio}</td>
+      const head = `<tr>
+        <th>Слов в тексте</th><th>Алгоритм</th><th>Прогонов</th>
+        <th>Среднее, мс</th><th>Мин, мс</th><th>Макс, мс</th>
+        <th>Сравнений</th><th>Перестановок</th><th>К QuickSort</th>
       </tr>`;
-    }).join("");
-    $("wBenchTable").innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-    renderChart(rows);
+      const body = rows.map((r) => {
+        let ratio = "";
+        if (r.algorithm !== "quick-improved" && quickAvg.has(r.wordCount) && quickAvg.get(r.wordCount) > 0) {
+          const x = r.avgMs / quickAvg.get(r.wordCount);
+          ratio = `×${x >= 10 ? x.toFixed(0) : x.toFixed(2)}`;
+        } else if (r.algorithm === "quick-improved") {
+          ratio = "—";
+        }
+        return `<tr>
+          <td class="num">${fmtNum(r.wordCount)}</td>
+          <td>${escapeHtml(r.algorithmTitle)}</td>
+          <td class="num">${r.runs}</td>
+          <td class="num">${fmtMs(r.avgMs)}</td>
+          <td class="num">${fmtMs(r.minMs)}</td>
+          <td class="num">${fmtMs(r.maxMs)}</td>
+          <td class="num">${fmtNum(r.comparisons)}</td>
+          <td class="num">${fmtNum(r.moves)}</td>
+          <td class="num">${ratio}</td>
+        </tr>`;
+      }).join("");
+      $("wBenchTable").innerHTML = `<table class="data"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    }
+    renderChartSafe(rows);
   }
 
   async function runBench() {
@@ -803,13 +803,47 @@
     return new Date(ts).toLocaleString("ru-RU");
   }
 
+  /* График всегда нарисован: либо точки замеров, либо пустая рамка с подсказкой.
+     Ошибку построения показываем прямо в блоке, а не молча в консоли. */
+  function renderChartSafe(rows) {
+    try {
+      renderChart(rows);
+    } catch (err) {
+      const wrap = $("wChartWrap");
+      wrap.hidden = false;
+      wrap.innerHTML = '<p class="hint">Не удалось построить график: ' +
+        escapeHtml((err && err.message) || String(err)) + "</p>";
+    }
+  }
+
   /* Простой SVG-график: среднее время (мс) по объёму текста, линия на каждый алгоритм. */
-  function renderChart(rows) {
-    const lengths = [...new Set(rows.map((r) => r.wordCount))].sort((a, b) => a - b);
-    const algos = [...new Set(rows.map((r) => r.algorithm))];
-    if (rows.length < 1) { $("wChartWrap").hidden = true; return; }
+  function renderChart(inputRows) {
+    const wrap = $("wChartWrap");
+    // Чистим данные: в SVG не должны попасть NaN/пустые значения (например, из старых записей истории).
+    const rows = (inputRows || [])
+      .map((r) => ({ ...r, wordCount: Number(r.wordCount), avgMs: Number(r.avgMs) }))
+      .filter((r) => Number.isFinite(r.wordCount) && Number.isFinite(r.avgMs) && r.wordCount > 0 && r.avgMs >= 0);
 
     const W = 640, H = 280, padL = 64, padR = 16, padT = 22, padB = 40;
+    const frame = (inner) => `
+      <div class="chartLegendRow"><span class="chartTitle">Время сортировки (среднее), мс</span></div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График времени сортировки">
+        <rect x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="#fcfcfe" stroke="#e5e7eb"/>
+        ${inner}
+        <text x="${(padL + W - padR) / 2}" y="${H - 6}" text-anchor="middle" class="axLabel">слов в тексте</text>
+      </svg>`;
+
+    if (rows.length === 0) {
+      // Замеров ещё нет — рисуем рамку графика с подсказкой вместо пустого места.
+      wrap.innerHTML = frame(
+        `<text x="${(padL + W - padR) / 2}" y="${H / 2 - 8}" text-anchor="middle" class="axLabel" font-size="14">Сделай замер — точка появится на графике</text>`);
+      wrap.hidden = false;
+      return;
+    }
+
+    const lengths = [...new Set(rows.map((r) => r.wordCount))].sort((a, b) => a - b);
+    const algos = [...new Set(rows.map((r) => r.algorithm))];
+
     const maxMs = Math.max(...rows.map((r) => r.avgMs)) * 1.1 || 1;
     const x = (i) => padL + (i * (W - padL - padR)) / Math.max(1, lengths.length - 1);
     const y = (v) => H - padB - (Math.min(v, maxMs) / maxMs) * (H - padT - padB);
@@ -845,14 +879,10 @@
     const legend = algos.map((algo) =>
       `<span class="chartLegend"><span class="dot" style="background:${colors[algo] || "#6b7280"}"></span>${escapeHtml(titleOfAlgo(algo))}</span>`).join("");
 
-    $("wChartWrap").innerHTML = `
+    wrap.innerHTML = `
       <div class="chartLegendRow">${legend}<span class="chartTitle">Время сортировки (среднее), мс</span></div>
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="График времени сортировки">
-        <rect x="${padL}" y="${padT}" width="${W - padL - padR}" height="${H - padT - padB}" fill="#fcfcfe" stroke="#e5e7eb"/>
-        ${grid.join("")}${xLabels}${series}
-        <text x="${(padL + W - padR) / 2}" y="${H - 6}" text-anchor="middle" class="axLabel">слов в тексте</text>
-      </svg>`;
-    $("wChartWrap").hidden = false;
+      ${frame(grid.join("") + xLabels + series)}`;
+    wrap.hidden = false;
   }
 
   function downloadCsv() {
@@ -913,6 +943,18 @@
     $("wLogDownBtn").addEventListener("click", () => {
       const list = $("wLogList");
       list.scrollTop = list.scrollHeight;
+    });
+
+    // Журнал кликабелен: клик по строке показывает соответствующий шаг.
+    // Если прыгнули в середину — следующие шаги просто продолжаются с этого места,
+    // журнал дописывается дальше, ничего не перестраивается с нуля.
+    $("wLogList").addEventListener("click", (e) => {
+      const line = e.target.closest(".logLine");
+      if (!line || !state.plan) return;
+      const i = Number(line.dataset.step);
+      if (!Number.isFinite(i)) return;
+      stopPlayback();
+      applyStep(i, { animateLog: false });
     });
 
     // Вкладки блока «Замеры времени»: Замер | История.

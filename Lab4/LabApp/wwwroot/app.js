@@ -594,6 +594,8 @@ function syncLog(toStep, animate = true) {
     const div = document.createElement("div");
     div.className = `logLine ${st.logKind}` + (animate ? " fresh" : "");
     div.textContent = st.logLine;
+    div.dataset.step = st.index;             // клик по строке → показать этот шаг
+    div.title = "Показать этот шаг";
     if (animate) div.addEventListener("animationend", () => div.classList.remove("fresh"), { once: true });
     fragment.appendChild(div);
   }
@@ -782,6 +784,18 @@ function bindControls() {
   $("logDownBtn").addEventListener("click", () => {
     const list = $("logList");
     list.scrollTop = list.scrollHeight;
+  });
+
+  // Журнал кликабелен: клик по строке показывает соответствующий шаг.
+  // Если прыгнули в середину — следующие шаги просто продолжаются с этого места,
+  // журнал дописывается дальше, ничего не перестраивается с нуля.
+  $("logList").addEventListener("click", (e) => {
+    const line = e.target.closest(".logLine");
+    if (!line || !state.plan) return;
+    const i = Number(line.dataset.step);
+    if (!Number.isFinite(i)) return;
+    stopPlayback();
+    applyStep(i, { animateLog: false });
   });
 
   // История сортировок: сортировка по времени и удаление записей.
