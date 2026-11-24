@@ -752,8 +752,10 @@
 
   /* Один «Замерить» = один замер: выбранный алгоритм, точки от «Шага» до «Максимума»
      с интервалом «Шаг». Все точки образуют ОДНУ запись истории и один график.
-     Во время замера кнопка работает как «Остановить»: замер сохраняется с уже
-     готовыми точками. Пока идёт замер, «Очистить график» заблокирована. */
+     Пока идёт замер, показан маленький индикатор «Замеряем время»; график
+     отрисовывается ОДИН раз и сразу целиком по завершении замера (так же при
+     остановке или ошибке — замер сохраняется с уже готовыми точками). Кнопка во
+     время замера работает как «Остановить», «Очистить график» заблокирована. */
   async function runBench() {
     if (state.benchRunning) { // кнопка работает как «Остановить»
       state.benchSeriesCancel = true;
@@ -777,17 +779,19 @@
     }
     state.benchRunning = true;
     state.benchSeriesCancel = false;
-    state.benchFilter = null;   // график переключается на новый замер
+    state.benchFilter = null;    // по завершении график переключится на новый замер
     state.chartCleared = false;
     $("wBenchRunBtn").textContent = "■ Остановить";
     $("wBenchClearChartBtn").disabled = true;  // во время замера график не очищается
     $("wHistDeleteBtn").disabled = true;
     $("wHistDeleteAllBtn").disabled = true;
+    $("wBenchSpin").hidden = false;            // маленький индикатор: время ещё замеряется
     const t0 = performance.now();
     let done = 0;
+    let bench = null;
+    let errText = null;
     try {
-      const bench = {
-        id: state.benchNextId++,
+      bench = {
         ts: new Date().toISOString(),
         algorithm: algo,
         algorithmTitle: titleOfAlgo(algo),
@@ -796,17 +800,10 @@
         step,
         points: [],
       };
-      state.benchRuns.push(bench); // замер сразу виден в истории и растёт по точкам
-      saveBench();
-      renderBenchAll();
       $("wBenchStatus").textContent =
-        `Замер «${bench.algorithmTitle}»: ${lengths.length} точек (от ${fmtNum(step)} до ${fmtNum(max)}, шаг ${fmtNum(step)}) · ${runs} прогонов на точку…`;
+        `Замер «${bench.algorithmTitle}»: ${lengths.length} точек (от ${fmtNum(step)} до ${fmtNum(max)}, шаг ${fmtNum(step)}) · ${runs} прогонов на точку.`;
       for (const L of lengths) {
-        if (state.benchSeriesCancel) {
-          $("wBenchStatus").textContent =
-            `Остановлено: в замере ${done} точек из ${lengths.length}. Замер с ними сохранён в историю.`;
-          return; // finally сбросит состояние кнопок
-        }
+        if (state.benchSeriesCancel) break;
         $("wBenchStatus").textContent =
           `Точка ${done + 1} из ${lengths.length}: ${fmtNum(L)} слов · ${runs} прогонов…`;
         const row = await post("/api/word-sort/bench", { algorithm: algo, runs, wordCount: L });
@@ -820,24 +817,39 @@
           times: Array.isArray(row.times) ? row.times : [],
         });
         done++;
-        saveBench();
-        renderBenchAll(); // точка сразу появляется на графике
       }
-      $("wBenchStatus").textContent =
-        `Готово за ${((performance.now() - t0) / 1000).toFixed(1)} с: замер «${bench.algorithmTitle}» — ` +
-        `${done} точек (от ${fmtNum(step)} до ${fmtNum(max)}, шаг ${fmtNum(step)}) · ` +
-        `${runs} прогонов на точку. Замер записан в историю.`;
     } catch (err) {
-      $("wBenchStatus").textContent =
-        "Ошибка: " + err.message + " (выполнено точек: " + done + " из " + lengths.length + ")";
-    } finally {
-      state.benchRunning = false;
-      state.benchSeriesCancel = false;
-      $("wBenchRunBtn").textContent = "▶ Замерить";
-      $("wBenchClearChartBtn").disabled = false;
-      $("wHistDeleteBtn").disabled = false;
-      $("wHistDeleteAllBtn").disabled = false;
+      errText = "Ошибка: " + err.message + " (выполнено точек: " + done + " из " + lengths.length + ")";
     }
+    // Замер целиком готов (или остановлен/прерван ошибкой) — записываем в историю
+    // и рисуем весь график сразу, всеми точками.
+    if (bench && bench.points.length > 0) {
+      bench.id = state.benchNextId++;
+      state.benchRuns.push(bench);
+      saveBench();
+      renderBenchAll();
+    }
+    const sec = ((performance.now() - t0) / 1000).toFixed(1);
+    if (errText) {
+      $("wBenchStatus").textContent = errText;
+    } else if (!bench || bench.points.length === 0) {
+      $("wBenchStatus").textContent = "Остановлено до первой точки — замер не сохранён.";
+    } else if (state.benchSeriesCancel) {
+      $("wBenchStatus").textContent =
+        `Остановлено за ${sec} с: в замере «${bench.algorithmTitle}» ${done} точек из ` +
+        `${lengths.length}. Замер с ними сохранён в историю.`;
+    } else {
+      $("wBenchStatus").textContent =
+        `Готово за ${sec} с: замер «${bench.algorithmTitle}» — ${done} точек (от ${fmtNum(step)} ` +
+        `до ${fmtNum(max)}, шаг ${fmtNum(step)}) · ${runs} прогонов на точку. Замер записан в историю.`;
+    }
+    state.benchRunning = false;
+    state.benchSeriesCancel = false;
+    $("wBenchRunBtn").textContent = "▶ Замерить";
+    $("wBenchClearChartBtn").disabled = false;
+    $("wHistDeleteBtn").disabled = false;
+    $("wHistDeleteAllBtn").disabled = false;
+    $("wBenchSpin").hidden = true;
   }
 
   function renderHistory() {

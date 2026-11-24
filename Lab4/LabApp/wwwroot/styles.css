@@ -581,6 +581,18 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .benchStatus { font-size: 12.5px; color: var(--muted); min-height: 18px; margin: 2px 0 6px; }
 
+/* Маленький индикатор «идёт замер времени»: вращающаяся точка + подпись. */
+.benchSpinRow {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--muted); min-height: 18px; margin: 2px 0 6px;
+}
+.benchSpinDot {
+  width: 12px; height: 12px; border-radius: 50%; flex: none;
+  border: 2px solid var(--accent-line); border-top-color: var(--accent);
+  animation: benchSpin .8s linear infinite;
+}
+@keyframes benchSpin { to { transform: rotate(360deg); } }
+
 .chartWrap { margin-top: 14px; }
 .chartWrap svg { width: 100%; height: auto; display: block; max-width: 720px; }
 .axLabel { font-size: 11px; fill: var(--muted); font-family: inherit; }
@@ -664,6 +676,18 @@ table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .benchBtn.benchDanger:hover:not(:disabled) { background: #b91c1c; color: #fff; }
 
 .benchStatus { font-size: 12.5px; color: var(--muted); min-height: 18px; margin: 2px 0 6px; }
+
+/* Маленький индикатор «идёт замер времени»: вращающаяся точка + подпись. */
+.benchSpinRow {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--muted); min-height: 18px; margin: 2px 0 6px;
+}
+.benchSpinDot {
+  width: 12px; height: 12px; border-radius: 50%; flex: none;
+  border: 2px solid var(--accent-line); border-top-color: var(--accent);
+  animation: benchSpin .8s linear infinite;
+}
+@keyframes benchSpin { to { transform: rotate(360deg); } }
 .benchFilterNote {
   font-size: 12.5px; color: var(--muted);
   background: var(--accent-soft); border: 1px solid var(--accent-line);

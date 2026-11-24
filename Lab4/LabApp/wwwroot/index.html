@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261124e">
+  <link rel="stylesheet" href="styles.css?v=20261124f">
 </head>
 <body>
 <header class="topbar">
@@ -216,8 +216,6 @@
         </div>
 
         <div id="wLegend" class="wLegend" hidden>
-          <span class="chip wchip wCmp">сравнение</span>
-          <span class="chip wchip wPivot">опорное</span>
           <span class="chip wchip wMem">в памяти</span>
           <span class="chip wchip wPlaced">на своём месте</span>
           <span class="chip wchip wRange">текущий кусок</span>
@@ -302,6 +300,9 @@
             </label>
             <button id="wBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить</button>
             <button id="wBenchClearChartBtn" class="benchBtn benchGray">Очистить график</button>
+            <div id="wBenchSpin" class="benchSpinRow" hidden>
+              <span class="benchSpinDot"></span><span>Замеряем время — график появится, когда замер завершится…</span>
+            </div>
             <div id="wBenchStatus" class="benchStatus"></div>
           </aside>
           <div class="benchMain">
@@ -350,6 +351,6 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="app.js?v=20261124e"></script>
-<script src="wordtab.js?v=20261124e"></script>
+<script src="wordtab.js?v=20261124f"></script>
 </body>
 </html>
