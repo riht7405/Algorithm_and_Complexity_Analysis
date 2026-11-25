@@ -731,3 +731,59 @@ table.data tbody tr[data-id] { cursor: pointer; }
   .benchLayout { grid-template-columns: 1fr; }
   .benchBtn { padding: 10px 12px; }
 }
+
+/* ==================== Задание 1: внутренние сортировки массива ==================== */
+
+/* Поле ввода массива: числа через пробел, запятую или с новой строки */
+.aArrayInput {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font: inherit; font-size: 13.5px; color: var(--ink); background: var(--card);
+  resize: vertical;
+  min-height: 74px;
+  line-height: 1.45;
+}
+
+/* Сцена: массив и буфер слияния — раскладка та же, что у слов в задании 3 */
+.aScene { display: flex; flex-direction: column; gap: 12px; min-height: 120px; }
+
+.aArrayWrap {
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fcfcfe;
+  overflow-x: auto;
+}
+
+/* Чип буфера слияния: штриховая фиолетовая рамка — «число лежит в буфере, не в массиве».
+   Числа в буфере и в массиве имеют один и тот же Id, поэтому подсветка сравнения
+   зажигает оба чипа сразу — так видно, откуда число пришло в буфер. */
+.wchip.aBuf {
+  border-style: dashed;
+  border-color: #7c3aed;
+  background: #f5f3ff;
+  color: #5b21b6;
+}
+.wchip.aBuf.wSwap,
+.wchip.aBuf.wCmp {
+  border-style: solid; /* на активных шагах чип целиком перекрашивается подсветкой */
+}
+
+/* Заголовок группы алгоритмов в списке карточек (классификация из задания) */
+.methodGroup {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .4px;
+  margin: 8px 0 1px;
+}
+.methodGroup:first-child { margin-top: 0; }
+
+/* Панель результата: отсортированный массив */
+.aSortedChips { margin-top: 4px; }
+
+@media (max-width: 760px) {
+  /* Мобильные браузеры зумят страницу при фокусе в поле с размером шрифта < 16px */
+  .aArrayInput { font-size: 16px; }
+}
+

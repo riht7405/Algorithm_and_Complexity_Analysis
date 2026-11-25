@@ -1,5 +1,6 @@
 using LabApp.Api;
 using LabApp.Core;
+using LabApp.Core.ArraySort;
 using LabApp.Core.ExternalSort;
 using LabApp.Core.Texts;
 using LabApp.Core.WordSort;
@@ -35,6 +36,14 @@ builder.Services.AddSingleton<IWordSortAlgorithm, QuickSortImproved>();
 builder.Services.AddSingleton<IWordSortAlgorithm, AbcSort>();
 builder.Services.AddSingleton<WordSorter>();
 
+// Алгоритмы внутренней сортировки массива (задание 1).
+// Чтобы добавить новый: реализуй IArraySortAlgorithm и зарегистрируй его здесь —
+// он сразу появится в интерфейсе, в API и в замерах времени.
+builder.Services.AddSingleton<IArraySortAlgorithm, SelectSort>();
+builder.Services.AddSingleton<IArraySortAlgorithm, InsertSort>();
+builder.Services.AddSingleton<IArraySortAlgorithm, MergeSort>();
+builder.Services.AddSingleton<ArraySorter>();
+
 var app = builder.Build();
 
 app.UseDefaultFiles();
@@ -50,6 +59,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", utc = DateTimeOf
 
 app.MapSortEndpoints();
 app.MapWordSortEndpoints();
+app.MapArraySortEndpoints();
 
 app.Run();
 

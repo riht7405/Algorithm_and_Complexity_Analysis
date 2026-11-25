@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261124f">
+  <link rel="stylesheet" href="styles.css?v=20261125a">
 </head>
 <body>
 <header class="topbar">
@@ -24,11 +24,192 @@
 </header>
 
 <main>
-  <!-- Задание 1 -->
+  <!-- Задание 1: внутренние сортировки -->
   <section class="tabPage" id="tab-task1">
-    <div class="panel placeholder">
-      <h2>Задание 1. Внутренние сортировки</h2>
+
+    <div class="layout">
+
+      <!-- Панель управления -->
+      <aside class="panel controls">
+        <h2>Настройка</h2>
+
+        <label class="field">
+          <span>Массив (числа через пробел, запятую или с новой строки)</span>
+          <textarea id="aArrayInput" class="aArrayInput" rows="4" spellcheck="false"
+            placeholder="например: 5 23 8 42 8 15"></textarea>
+          <span class="fieldHint">до 100 чисел; массив вводится вручную или генерируется кнопкой ниже</span>
+        </label>
+
+        <div class="field">
+          <span>Случайный массив</span>
+          <div class="genRow">
+            <input type="number" id="aRandomCount" min="1" max="100" step="1" value="16"
+              title="Сколько чисел сгенерировать (1–100)">
+            <button id="aRandomBtn">Сгенерировать</button>
+          </div>
+          <span class="fieldHint">от 1 до 100 чисел; каждый раз — новый случайный массив,
+            состояние у случайных массивов не сохраняется</span>
+        </div>
+
+        <div class="field">
+          <span>Алгоритм сортировки</span>
+          <div id="aMethodList" class="methods"></div>
+        </div>
+
+        <div class="field">
+          <span>Порядок</span>
+          <div class="segmented">
+            <button id="aAscBtn" class="seg active">▲ По возрастанию</button>
+            <button id="aDescBtn" class="seg">▼ По убыванию</button>
+          </div>
+        </div>
+
+        <div id="aErrorBox" class="errorBox" hidden></div>
+      </aside>
+
+      <!-- Сцена визуализации -->
+      <section class="panel stage">
+        <div class="stageHead">
+          <div id="aPhaseBadge" class="phaseBadge" hidden></div>
+          <div class="progressWrap"><div id="aProgressBar"></div></div>
+          <div id="aStepCounter" class="stepCounter">шаг 0 / 0</div>
+        </div>
+
+        <div class="playbackBar">
+          <button id="aPlayBtn" class="primary">▶ Запустить</button>
+          <button id="aStepBtn">Шаг ⏭</button>
+          <button id="aEndBtn" title="Сразу показать последний шаг сортировки">⇥ В конец</button>
+          <button id="aBackBtn" disabled>⏮ Назад</button>
+          <button id="aResetBtn" disabled>↺ Сброс</button>
+          <label class="delayInline">
+            <span>задержка</span>
+            <input type="range" id="aDelayRange" min="50" max="1500" step="50" value="300">
+            <b id="aDelayVal">300</b>&nbsp;мс
+          </label>
+        </div>
+
+        <div id="aScene" class="aScene">
+          <div class="emptyStage">Введи числа и нажми «Запустить».</div>
+        </div>
+
+        <div id="aLegend" class="wLegend" hidden>
+          <span class="chip wchip wMem">в памяти</span>
+          <span class="chip wchip wPivot">особое число (минимум)</span>
+          <span class="chip wchip wPlaced">на своём месте</span>
+          <span class="chip wchip wRange">текущий кусок</span>
+          <span class="chip wchip aBuf">в буфере слияния</span>
+        </div>
+
+        <div id="aMemoryBox" class="memoryBox" hidden></div>
+
+        <div id="aDescBox" class="descBox">
+          Задание 1: массив чисел сортируется внутренними алгоритмами — выбором, вставками или
+          слиянием. Нажми «Запустить» — покажу сортировку по шагам: что сравниваем, куда
+          переставляем и что пишем в буфер.
+        </div>
+
+        <div id="aCounterRow" class="counterRow" hidden></div>
+      </section>
+
+      <!-- Журнал -->
+      <aside class="panel logPanel">
+        <div class="logHead">
+          <h2>Журнал сравнений и перестановок</h2>
+          <div class="logActions">
+            <button id="aLogDownBtn" class="mini" title="Пролистать журнал вниз">↓ Вниз</button>
+            <label class="check small">
+              <input type="checkbox" id="aFollowLog" checked>
+              <span>Следить</span>
+            </label>
+          </div>
+        </div>
+        <div id="aLogList" class="logList">
+          <div class="logEmpty">Журнал появится после запуска сортировки.</div>
+        </div>
+      </aside>
     </div>
+
+    <!-- Результат -->
+    <section class="panel tableView" id="aResultPanel" hidden>
+      <h2>Отсортированный массив <span id="aResultCaption" class="caption"></span></h2>
+      <p class="hint" id="aResultNote"></p>
+      <div id="aSortedChips" class="chips aSortedChips"></div>
+    </section>
+
+    <!-- Замеры времени -->
+    <section class="panel tableView" id="aBenchPanel">
+      <h2>Замеры времени</h2>
+
+      <div class="benchTabs" id="aBenchTabs">
+        <button class="benchTab active" data-btab="run">Замер</button>
+        <button class="benchTab" data-btab="history">История</button>
+      </div>
+
+      <!-- Вкладка «Замер»: параметры слева, график и таблица справа — как в 3-м задании -->
+      <div id="aBenchRunTab" class="benchTabPage">
+        <div class="benchLayout">
+          <aside class="benchParams">
+            <h3>Параметры замера</h3>
+            <label class="field">
+              <span>Алгоритм</span>
+              <select id="aBenchAlgo"></select>
+            </label>
+            <label class="field">
+              <span>Максимальный объём (чисел)</span>
+              <input type="number" id="aBenchMax" min="100" max="30000" step="1" value="10000">
+            </label>
+            <label class="field">
+              <span>Шаг (чисел)</span>
+              <input type="number" id="aBenchStep" min="1" max="30000" step="1" value="2000">
+            </label>
+            <label class="field">
+              <span>Прогонов на точку</span>
+              <input type="number" id="aBenchRuns" min="1" max="50" step="1" value="3">
+            </label>
+            <button id="aBenchRunBtn" class="benchBtn benchPrimary">▶ Замерить</button>
+            <button id="aBenchClearChartBtn" class="benchBtn benchGray">Очистить график</button>
+            <div id="aBenchSpin" class="benchSpinRow" hidden>
+              <span class="benchSpinDot"></span><span>Замеряем время — график появится, когда замер завершится…</span>
+            </div>
+            <div id="aBenchStatus" class="benchStatus"></div>
+            <span class="fieldHint">квадратичные алгоритмы растут как n², поэтому объём точки
+              не превышает 30 000 чисел; массив на каждый объём генерируется с фиксированным
+              сидом — замеры воспроизводимы</span>
+          </aside>
+          <div class="benchMain">
+            <div class="chartHead">
+              <span class="chartHint">Колесо мыши — масштаб · перетаскивание — сдвиг графика</span>
+              <button id="aChartResetZoomBtn" class="mini" type="button">⟲ Сбросить масштаб</button>
+            </div>
+            <div id="aChartWrap" class="chartWrap">
+              <canvas id="aChartCanvas" hidden></canvas>
+              <div id="aChartEmpty" class="chartEmpty">Сделай замер — на графике появятся его точки.</div>
+            </div>
+            <div id="aBenchFilterNote" class="benchFilterNote" hidden></div>
+            <div class="tableWrap" id="aBenchTable"></div>
+            <div class="benchCsvRow"><button id="aBenchCsvBtn" class="mini" hidden>⬇ CSV</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Вкладка «История»: журнал замеров с выбором — как в 3-м задании -->
+      <div id="aBenchHistoryTab" class="benchTabPage" hidden>
+        <div class="benchLayout">
+          <aside class="benchParams">
+            <h3>История замеров</h3>
+            <p class="hint">Клик по строке — выбрать или снять выделение.
+              «Построить график» покажет выбранные точки на вкладке «Замер».</p>
+            <button id="aHistChartBtn" class="benchBtn benchPrimary">⬒ Построить график для выбранных</button>
+            <button id="aHistDeleteBtn" class="benchBtn benchDanger">🗑 Удалить выбранные</button>
+            <button id="aHistDeleteAllBtn" class="benchBtn benchDanger">🗑 Удалить все замеры</button>
+            <button id="aHistRefreshBtn" class="benchBtn benchGray">⟳ Обновить список</button>
+          </aside>
+          <div class="benchMain">
+            <div class="tableWrap" id="aBenchHistory"></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </section>
 
   <!-- Задание 2: внешняя сортировка -->
@@ -350,7 +531,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
-<script src="app.js?v=20261124e"></script>
+<script src="app.js?v=20261125a"></script>
+<script src="sorttab.js?v=20261125a"></script>
 <script src="wordtab.js?v=20261124f"></script>
 </body>
 </html>
