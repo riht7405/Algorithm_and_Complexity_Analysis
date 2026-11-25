@@ -56,11 +56,13 @@ public sealed class ArraySorter
         _algorithms = algorithms.ToDictionary(a => a.Id);
     }
 
-    /// <summary>Список доступных алгоритмов (для карточек выбора в интерфейсе).</summary>
+    /// <summary>Список доступных алгоритмов (для карточек выбора в интерфейсе).
+    /// treeModeMax — лимит режима визуализации «Дерево» (null — у алгоритма дерева нет).</summary>
     public IReadOnlyList<ArraySortMethodInfo> ListMethods() =>
         _algorithms.Values
             .Select(a => new ArraySortMethodInfo(
-                a.Id, a.Title, a.Group, a.Badge, a.ShortInfo, a.PassesLabel, a.MemorySlots))
+                a.Id, a.Title, a.Group, a.Badge, a.ShortInfo, a.PassesLabel, a.MemorySlots,
+                a is TournamentSort ? TournamentSort.TreeModeMaxElements : null))
             .ToList();
 
     /// <summary>

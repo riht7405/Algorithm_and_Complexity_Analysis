@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261125b">
+  <link rel="stylesheet" href="styles.css?v=20261125c">
 </head>
 <body>
 <header class="topbar">
@@ -82,6 +82,15 @@
           <button id="aEndBtn" title="Сразу показать последний шаг сортировки">⇥ В конец</button>
           <button id="aBackBtn" disabled>⏮ Назад</button>
           <button id="aResetBtn" disabled>↺ Сброс</button>
+          <!-- Режим отображения сцены: список (по умолчанию) и дерево турнирной сетки.
+               Показывается только для TournamentSort; шаги/журнал/счётчики общие —
+               переключение меняет только представление, состояние не сбрасывается. -->
+          <div class="segmented aModeSwitch" id="aModeSwitch" hidden>
+            <button id="aModeChips" class="seg active" type="button"
+              title="Режим 1: массив и выход турнира в виде строк чипов">▤ Режим 1 · Список</button>
+            <button id="aModeTree" class="seg" type="button"
+              title="Режим 2: турнирная сетка в виде дерева">🌳 Режим 2 · Дерево</button>
+          </div>
           <label class="delayInline">
             <span>задержка</span>
             <input type="range" id="aDelayRange" min="50" max="1500" step="50" value="300">
@@ -535,7 +544,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="app.js?v=20261125a"></script>
-<script src="sorttab.js?v=20261125c"></script>
+<script src="sorttab.js?v=20261125i"></script>
 <script src="wordtab.js?v=20261125b"></script>
 </body>
 </html>

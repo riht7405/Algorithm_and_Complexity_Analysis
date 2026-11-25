@@ -1,9 +1,14 @@
 /* Лабораторная 4, задание 1 — пошаговая визуализация внутренних сортировок массива чисел
-   (SelectSort, InsertSort, MergeSort) и замеры времени. Ванильный JS, без сборки.
+   (SelectSort, InsertSort, MergeSort, TournamentSort) и замеры времени. Ванильный JS, без сборки.
    Массив вводится вручную или генерируется кнопкой. Как в задании 2, у каждого сочетания
    настроек (массив, алгоритм, порядок) — своя независимая сессия: сделал несколько шагов,
    переключился на другую сортировку и вернулся — прогресс на месте. Новая сессия появляется
    только когда меняется сам массив (кнопка «Сгенерировать» или правка поля).
+   У TournamentSort два режима отображения сцены: «Список» (массив + выход турнира) и
+   «Дерево» (турнирная сетка в виде SVG-дерева с подсветкой текущего матча). Режим — это
+   только представление: шаги, журнал, счётчики и память общие, поэтому переключение
+   не сбрасывает состояние. Дерево доступно для массивов до treeModeMax чисел (лимит
+   приходит с сервера вместе со списком алгоритмов) — сетка большего размера не помещается.
    Замеры времени полностью независимы от настроек демонстрации и внешне повторяют
    панель замеров задания 3. */
 "use strict";
@@ -17,6 +22,7 @@
     methods: [],          // алгоритмы с сервера (с полем group для группировки карточек)
     method: "select",
     ascending: true,
+    viewMode: "chips",    // режим сцены: chips — список, tree — дерево турнирной сетки
     valuesKey: "",        // ключ массива (нормализованный список чисел через запятую)
     sessions: new Map(),  // ключ настроек -> {plan, cursor, resultShown}
     sessionKey: "",
@@ -156,6 +162,7 @@
 
   function restoreSession() {
     stopPlayback();
+    clearPending(); // отложенные клики прошлой сессии не переносятся
     const s = state.sessions.get(state.sessionKey);
     state.plan = s ? s.plan : null;
     state.cursor = s ? s.cursor : -1;
@@ -227,8 +234,33 @@
 
   /* ---------------- запуск и воспроизведение ---------------- */
 
+  let planFetching = false;  // трассировка уже считается — повторные клики не дублируют запрос
+  let pendingSteps = 0;      // клики «Шаг» во время расчёта: применяемся, когда план готов
+  let pendingPlay = false;   // клик «Запустить» во время расчёта: запускаем, когда план готов
+
+  function clearPending() {
+    pendingSteps = 0;
+    pendingPlay = false;
+  }
+
+  function beginPlayback() {
+    const last = state.plan.steps.length - 1;
+    if (state.cursor >= last) { // «Заново»: начинаем этот прогон с начала
+      state.cursor = -1;
+      state.logStep = -1;
+      state.resultShown = false;
+      syncSession();
+      renderSessionView({ animateLog: false, record: false });
+    }
+    state.playing = true;
+    updatePlayBtn();
+    scheduleTick();
+  }
+
   async function ensurePlan() {
     if (state.plan) return true;
+    if (planFetching) return false; // запрос уже идёт: вторая параллельная трассировка не нужна
+    planFetching = true;
     const keyAtStart = state.sessionKey;
     hideError();
     $("aDescBox").textContent = "Считаем шаги сортировки…";
@@ -245,30 +277,34 @@
       state.resultShown = false;
       state.valuesById = new Map(plan.elements.map((w) => [w.id, w.value]));
       syncSession();
+      // Отложенные клики: «Запустить» начинает воспроизведение, «Шаг» — прыгает на
+      // нужный шаг (каждый клик = один шаг, как если бы они пришли после готовности).
+      if (pendingPlay) {
+        clearPending();
+        beginPlayback();
+      } else if (pendingSteps > 0) {
+        const target = Math.min(state.cursor + pendingSteps, state.plan.steps.length - 1);
+        clearPending();
+        if (target > state.cursor) applyStep(target, { animateLog: false });
+      }
       return true;
     } catch (err) {
       if (state.sessionKey === keyAtStart) {
         showError(err.message);
         $("aDescBox").textContent = "Настрой параметры и нажми «Запустить».";
       }
+      clearPending();
       return false;
+    } finally {
+      planFetching = false;
     }
   }
 
   async function onPlay() {
     if (state.playing) { stopPlayback(); return; }
+    if (!state.plan && planFetching) { pendingPlay = true; return; }
     if (!await ensurePlan()) return;
-    const last = state.plan.steps.length - 1;
-    if (state.cursor >= last) { // «Заново»: начинаем этот прогон с начала
-      state.cursor = -1;
-      state.logStep = -1;
-      state.resultShown = false;
-      syncSession();
-      renderSessionView({ animateLog: false, record: false });
-    }
-    state.playing = true;
-    updatePlayBtn();
-    scheduleTick();
+    beginPlayback();
   }
 
   function scheduleTick() {
@@ -303,25 +339,30 @@
 
   async function onStep() {
     stopPlayback();
+    if (!state.plan && planFetching) { pendingSteps++; return; } // применим после готовности плана
     if (!await ensurePlan()) return;
+    clearPending();
     if (state.cursor < state.plan.steps.length - 1) applyStep(state.cursor + 1);
     else updatePlayBtn();
   }
 
   async function onJumpEnd() {
     stopPlayback();
+    clearPending();
     if (!await ensurePlan()) return;
     applyStep(state.plan.steps.length - 1);
   }
 
   async function onBack() {
     stopPlayback();
+    clearPending();
     if (!state.plan || state.cursor < 0) return;
     applyStep(state.cursor - 1);
   }
 
   function onReset() {
     stopPlayback();
+    clearPending();
     if (state.plan) {
       state.cursor = -1;
       state.logStep = -1;
@@ -354,6 +395,7 @@
   function renderSessionView(opts = {}) {
     const { animateLog = true, record = true } = opts;
     const badge = $("aPhaseBadge");
+    updateModeSwitch(); // видимость/доступность переключателя режимов (зависит от алгоритма и массива)
 
     if (!state.plan || state.cursor < 0) {
       state.logStep = -1;
@@ -400,12 +442,9 @@
     return null;
   }
 
-  function renderScene() {
-    const scene = $("aScene");
-    if (!state.plan) {
-      scene.innerHTML = '<div class="emptyStage">Введи числа и нажми «Запустить».</div>';
-      return;
-    }
+  /* Общие данные сцены для обоих режимов: снимки массива/буфера/серий, подсветки шага
+     и функция чипа. Снимки — последние ≤ курсора (сравнения порядок не меняют). */
+  function sceneBits() {
     const elements = state.plan.elements;
     const arr = (state.cursor >= 0 ? snapshotAt("arrayIds", state.cursor) : null) ||
       elements.map((w) => w.id);
@@ -436,46 +475,59 @@
       return `<span class="${cls.join(" ")}" title="${escapeHtml(titleOf(id))}">${escapeHtml(labelOf(id))}</span>`;
     };
 
-    /* Чипы массива. Если MergeSort разметил серии — чипы каждой серии обводятся в свою
-       группу с подписью (как «Серия N» на лентах внешней сортировки): чипы серии стоят
-       в массиве подряд, поэтому разрезаем ряд на сегменты-группы. */
-    let chips;
-    if (seriesA && seriesA.length > 0) {
-      const setA = new Set(seriesA);
-      const setB = new Set(seriesB || []);
-      const hasPair = (seriesB || []).length > 0;
-      const labelA = hasPair ? "серия 1 · левая" : "серия без пары";
-      const labelB = "серия 2 · правая";
-      const parts = [];
-      let i = 0;
-      while (i < arr.length) {
-        const inA = setA.has(arr[i]);
-        const inB = !inA && setB.has(arr[i]);
-        if (!inA && !inB) { parts.push(chipHtml(arr[i])); i++; continue; }
-        const set = inA ? setA : setB;
-        const label = inA ? labelA : labelB;
-        const groupChips = [];
-        let j = i;
-        while (j < arr.length && set.has(arr[j])) { groupChips.push(chipHtml(arr[j])); j++; }
-        parts.push(`<span class="runGroup aRunGroup"><span class="runNo">${label}</span>${groupChips.join("")}</span>`);
-        i = j;
-      }
-      chips = parts.join("");
-    } else {
-      chips = arr.map((id) => chipHtml(id)).join("");
-    }
-
     // Буфер слияния: снимок на текущем шаге; null — алгоритм буфер не использует,
     // пустой список — буфер показан пустым (например в начале прохода после CopyBack).
-    let bufferHtml = "";
-    if (buffer) {
-      bufferHtml = `
+    const bufferHtml = buffer === null ? "" : `
       <div class="aArrayWrap">
         <div class="wArrayTitle">${state.method === "tournament" ? "Выход турнира" : "Буфер слияния"}</div>
         <div class="chips">${buffer.length === 0
           ? '<span class="ghost">пусто</span>'
           : buffer.map((id) => chipHtml(id, ["aBuf"])).join("")}</div>
       </div>`;
+
+    return { step, arr, placed, range, buffer, seriesA, seriesB, hi, mem, isMove, chipHtml, bufferHtml };
+  }
+
+  function renderScene() {
+    const scene = $("aScene");
+    if (!state.plan) {
+      scene.innerHTML = '<div class="emptyStage">Введи числа и нажми «Запустить».</div>';
+      return;
+    }
+    // Режим 2 — дерево турнирной сетки: только TournamentSort с деревом в трассировке.
+    if (state.viewMode === "tree" && planSupportsTree()) {
+      renderTreeScene(scene);
+      return;
+    }
+    const bits = sceneBits();
+
+    /* Чипы массива. Если MergeSort разметил серии — чипы каждой серии обводятся в свою
+       группу с подписью (как «Серия N» на лентах внешней сортировки): чипы серии стоят
+       в массиве подряд, поэтому разрезаем ряд на сегменты-группы. */
+    let chips;
+    if (bits.seriesA && bits.seriesA.length > 0) {
+      const setA = new Set(bits.seriesA);
+      const setB = new Set(bits.seriesB || []);
+      const hasPair = (bits.seriesB || []).length > 0;
+      const labelA = hasPair ? "серия 1 · левая" : "серия без пары";
+      const labelB = "серия 2 · правая";
+      const parts = [];
+      let i = 0;
+      while (i < bits.arr.length) {
+        const inA = setA.has(bits.arr[i]);
+        const inB = !inA && setB.has(bits.arr[i]);
+        if (!inA && !inB) { parts.push(bits.chipHtml(bits.arr[i])); i++; continue; }
+        const set = inA ? setA : setB;
+        const label = inA ? labelA : labelB;
+        const groupChips = [];
+        let j = i;
+        while (j < bits.arr.length && set.has(bits.arr[j])) { groupChips.push(bits.chipHtml(bits.arr[j])); j++; }
+        parts.push(`<span class="runGroup aRunGroup"><span class="runNo">${label}</span>${groupChips.join("")}</span>`);
+        i = j;
+      }
+      chips = parts.join("");
+    } else {
+      chips = bits.arr.map((id) => bits.chipHtml(id)).join("");
     }
 
     scene.innerHTML = `
@@ -483,7 +535,210 @@
         <div class="wArrayTitle">Массив</div>
         <div class="chips">${chips}</div>
       </div>
-      ${bufferHtml}`;
+      ${bits.bufferHtml}`;
+  }
+
+  /* ================= режим 2: сцена «Дерево» (турнирная сетка) ================= */
+
+  /* Лимит режима «Дерево» приходит с сервера в списке алгоритмов (null — дерева нет). */
+  function treeModeMax() {
+    const m = state.methods.find((x) => x.id === state.method);
+    return m && Number.isFinite(m.treeModeMax) ? m.treeModeMax : null;
+  }
+
+  function elementCountNow() {
+    return state.plan ? state.plan.elementCount : readValues().length;
+  }
+
+  /* Переключатель показывается только у алгоритма с сеткой; «Дерево» заблокировано,
+     если текущий массив больше лимита — сетка не помещается на экране, или в массиве
+     меньше двух чисел — сортировать нечего и сетка не строится. */
+  function treeAvailable() {
+    const max = treeModeMax();
+    const n = elementCountNow();
+    return max !== null && n >= 2 && n <= max;
+  }
+
+  /* Текущий план вообще содержит дерево: TournamentSort + дерево влезает в лимит +
+     трассировка со снимками сетки (для больших массивов сервер их не строит). */
+  function planSupportsTree() {
+    return !!state.plan && state.plan.method === "tournament" &&
+      state.plan.elementCount <= (treeModeMax() ?? -1) &&
+      state.plan.steps.some((s) => s.tree);
+  }
+
+  /* Переключение режима — только представление: план, шаг, журнал, счётчики и память
+     остаются как были, поэтому воспроизведение можно не останавливать. */
+  function setViewMode(mode) {
+    if (mode === "tree" && !treeAvailable()) return;
+    if (state.viewMode === mode) return;
+    state.viewMode = mode;
+    updateModeSwitch();
+    renderSessionView({ animateLog: false, record: false });
+  }
+
+  function updateModeSwitch() {
+    const wrap = $("aModeSwitch");
+    const hasTree = treeModeMax() !== null;
+    wrap.hidden = !hasTree;
+    const ok = treeAvailable();
+    const max = treeModeMax();
+    const effective = state.viewMode === "tree" && ok ? "tree" : "chips";
+    $("aModeChips").classList.toggle("active", effective === "chips");
+    $("aModeTree").classList.toggle("active", effective === "tree");
+    $("aModeTree").disabled = !ok;
+    $("aModeTree").title = ok
+      ? "Режим 2: турнирная сетка в виде дерева"
+      : `Дерево доступно для массивов до ${max} чисел — сейчас ${elementCountNow()}. Уменьши массив или сгенерируй новый.`;
+  }
+
+  /* Стартовая сетка: участники на своих местах внизу, матчей ещё не было. */
+  function initialTree(n) {
+    const size = treeSizeFor(n);
+    const tree = new Array(2 * size - 1).fill(-1);
+    for (let i = 0; i < size; i++) tree[size - 1 + i] = i < n ? i : -1;
+    return tree;
+  }
+
+  function treeSizeFor(n) {
+    let size = 1;
+    while (size < n) size *= 2;
+    return size;
+  }
+
+  /* Состояние сетки на шаге i: последний снимок ≤ i; до первого снимка — стартовая сетка.
+     tree[v] — позиция массива-победителя в узле v или -1 (место опустело). */
+  function treeAt(i) {
+    const steps = state.plan.steps;
+    for (let j = Math.min(i, steps.length - 1); j >= 0; j--) {
+      if (steps[j].tree) return steps[j].tree;
+    }
+    return initialTree(state.plan.elementCount);
+  }
+
+  /* Сцена «Дерево»: SVG-сетка (корень — победитель турнира, листья — участники), под ней
+     те же строки «Массив» и «Выход турнира», что в режиме «Список». Узлы: место опустело —
+     «—», текущий матч и его победитель подсвечены по шагу трассировки. */
+  function renderTreeScene(scene) {
+    const plan = state.plan;
+    const n = plan.elementCount;
+    const size = treeSizeFor(n);
+    const bits = sceneBits();
+    const step = bits.step;
+    const tree = state.cursor >= 0 ? treeAt(state.cursor) : initialTree(n);
+
+    // Подсветки текущего шага: узел сыгранного матча (сравнение) и выбывший лист (извлечение).
+    const matchNode = step && step.kind === "Compare" && step.tree && step.treeNode != null
+      ? step.treeNode : null;
+    const leavingNode = step && step.kind === "PassStart" && step.tree && step.treeNode != null
+      ? step.treeNode : null;
+    const winnerId = step && step.kind === "Compare" ? step.markId : null;
+
+    // Геометрия: листья в ряд внизу, родитель — над серединой детей.
+    const slotW = size <= 8 ? 60 : size <= 16 ? 46 : 44;
+    const nodeW = Math.min(slotW - 8, 58);
+    const nodeH = 30;
+    const levelH = 66;
+    const padX = 12, padTop = 10;
+    const levels = Math.round(Math.log2(size)) + 1;
+    const W = size * slotW + padX * 2;
+    const H = (levels - 1) * levelH + padTop + nodeH / 2 + 21;
+    const count = 2 * size - 1;
+    const px = new Array(count), py = new Array(count);
+    for (let i = 0; i < size; i++) px[size - 1 + i] = padX + i * slotW + slotW / 2;
+    for (let p = size - 2; p >= 0; p--) px[p] = (px[2 * p + 1] + px[2 * p + 2]) / 2;
+    for (let v = 0; v < count; v++) py[v] = padTop + Math.floor(Math.log2(v + 1)) * levelH;
+
+    const label = (v) => tree[v] < 0 ? "—" : String(plan.elements[tree[v]].value);
+    const tooltip = (v) => {
+      const pos = tree[v];
+      const isLeaf = v >= size - 1;
+      const seat = isLeaf ? v - (size - 1) : null;
+      if (pos < 0) {
+        if (isLeaf && seat < n) return `№${seat + 1} — выбыл (ушёл в выход)`;
+        if (isLeaf) return "свободное место — добивка сетки до степени двойки";
+        return "в этом матче участников не осталось";
+      }
+      return isLeaf
+        ? `№${seat + 1}: ${plan.elements[pos].value} — участник турнира`
+        : `№${pos + 1}: ${plan.elements[pos].value} — победитель этого поддерева`;
+    };
+
+    const edges = [];
+    const nodes = [];
+    for (let v = 0; v < count; v++) {
+      const isLeaf = v >= size - 1;
+      if (!isLeaf) {
+        // Ребро к каждому ребёнку; у текущего матча ребро победителя — зелёное.
+        const c1 = 2 * v + 1, c2 = 2 * v + 2;
+        let e1 = "", e2 = "";
+        if (v === matchNode) {
+          const id1 = tree[c1] >= 0 ? plan.elements[tree[c1]].id : null;
+          const id2 = tree[c2] >= 0 ? plan.elements[tree[c2]].id : null;
+          e1 = id1 === winnerId ? "tEdgeWin" : "tEdgeLose";
+          e2 = id2 === winnerId ? "tEdgeWin" : "tEdgeLose";
+        }
+        edges.push(`<line class="tEdge ${e1}" x1="${px[v]}" y1="${py[v] + nodeH / 2}" x2="${px[c1]}" y2="${py[c1] - nodeH / 2}"/>`);
+        edges.push(`<line class="tEdge ${e2}" x1="${px[v]}" y1="${py[v] + nodeH / 2}" x2="${px[c2]}" y2="${py[c2] - nodeH / 2}"/>`);
+      }
+
+      const cls = ["tnode"];
+      if (isLeaf) {
+        cls.push("tLeaf");
+        const seat = v - (size - 1);
+        if (tree[v] < 0) cls.push(seat < n ? "tOut" : "tBye");
+      } else {
+        cls.push("tGame");
+        if (tree[v] < 0) cls.push("tEmpty");
+        else if (v === 0) cls.push("tChamp"); // корень — победитель всего турнира
+      }
+      if (v === matchNode) cls.push("tMatch");
+      if (v === leavingNode) cls.push("tLeaving");
+      if (matchNode !== null && (v === 2 * matchNode + 1 || v === 2 * matchNode + 2)) {
+        const pos = tree[v];
+        const id = pos >= 0 ? plan.elements[pos].id : null;
+        cls.push(id === winnerId ? "tWin" : "tLose");
+      }
+
+      const isReal = isLeaf && (v - (size - 1)) < n;
+      nodes.push(`<g class="${cls.join(" ")}">` +
+        `<title>${escapeHtml(tooltip(v))}</title>` +
+        `<rect class="tBox" x="${px[v] - nodeW / 2}" y="${py[v] - nodeH / 2}" width="${nodeW}" height="${nodeH}" rx="8"/>` +
+        `<text class="tVal" x="${px[v]}" y="${py[v]}">${escapeHtml(label(v))}</text>` +
+        (isReal ? `<text class="tSeat" x="${px[v]}" y="${py[v] + nodeH / 2 + 13}">№${v - (size - 1) + 1}</text>` : "") +
+        `</g>`);
+    }
+
+    // Ширина панели известна только при видимой вкладке: дерево до ~ширины панели
+    // масштабируется под неё (текст остаётся читаемым), более широкое — листается.
+    const avail = Math.max(scene.clientWidth - 26, 320);
+    const wide = W > avail * 1.18;
+    const svgStyle = wide ? `min-width:${W}px` : `max-width:${Math.round(W * 1.3)}px`;
+    const svg = `<svg class="treeSvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ` +
+      `style="${svgStyle}" role="img" aria-label="Турнирная сетка">${edges.join("")}${nodes.join("")}</svg>`;
+
+    const treeCard = `
+      <div class="aArrayWrap treeCard">
+        <div class="wArrayTitle">Турнирная сетка
+          <span class="treeSub">в корне — победитель турнира, внизу — участники; «—» — место опустело</span>
+        </div>
+        <div class="treeScroll">${svg}</div>
+        <div class="treeLegend">
+          <span class="tLeg"><i class="tSwatch tLeaf"></i>участник</span>
+          <span class="tLeg"><i class="tSwatch tGame"></i>матч</span>
+          <span class="tLeg"><i class="tSwatch tMatch"></i>текущий матч</span>
+          <span class="tLeg"><i class="tSwatch tWin"></i>победитель матча</span>
+          <span class="tLeg"><i class="tSwatch tOut"></i>выбыл</span>
+          <span class="tLeg"><i class="tSwatch tBye"></i>свободное место</span>
+        </div>
+      </div>`;
+
+    scene.innerHTML = `${treeCard}
+      <div class="aArrayWrap">
+        <div class="wArrayTitle">Массив</div>
+        <div class="chips">${bits.arr.map((id) => bits.chipHtml(id)).join("")}</div>
+      </div>
+      ${bits.bufferHtml}`;
   }
 
   function labelOf(id) {
@@ -1084,6 +1339,28 @@
     $("aBackBtn").addEventListener("click", onBack);
     $("aResetBtn").addEventListener("click", onReset);
     $("aRandomBtn").addEventListener("click", onRandom);
+
+    // Переключение режима сцены «Список ⇄ Дерево»: представление меняется, состояние нет.
+    $("aModeChips").addEventListener("click", () => setViewMode("chips"));
+    $("aModeTree").addEventListener("click", () => setViewMode("tree"));
+
+    // Вкладки заданий переключает app.js (классами). Пока вкладка 1 скрыта, ширина сцены
+    // неизвестна (clientWidth = 0), поэтому после показа вкладки перерисовываем сцену —
+    // дерево масштабируется под фактическую ширину панели.
+    $("tabs").addEventListener("click", (e) => {
+      if (e.target.closest('.tab[data-tab="task1"]')) {
+        renderSessionView({ animateLog: false, record: false });
+      }
+    });
+
+    // Изменение размера окна: в режиме дерева пересчитываем «вписать/листать».
+    let treeResizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(treeResizeTimer);
+      treeResizeTimer = setTimeout(() => {
+        if (state.viewMode === "tree" && planSupportsTree()) renderScene();
+      }, 150);
+    });
 
     // Редактирование массива: сессия переключается на новый ключ; у сгенерированного
     // массива после правки сид больше не соответствует содержимому.

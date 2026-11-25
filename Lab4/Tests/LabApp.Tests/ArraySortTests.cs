@@ -174,6 +174,101 @@ public class ArraySortTests
         }
     }
 
+    // ---------- трассировка турнирной сетки (для режима визуализации «Дерево») ----------
+
+    private static ArraySortTrace TraceTournament(int[] values, bool descending = false)
+    {
+        IArraySortAlgorithm tournament = new TournamentSort();
+        var work = MakeEntries(values);
+        var builder = new ArraySortTraceBuilder(work, active: true);
+        tournament.Sort(work, descending, builder);
+        return builder.Build(work.Select(w => w.Id).ToArray());
+    }
+
+    [Fact]
+    public void TournamentSort_TraceTree_SnapshotsCoverMatchesAndExtractions()
+    {
+        // Режим «Дерево»: каждый матч и каждое выбытие прикладывают снимок сетки —
+        // клиент восстанавливает состояние любого шага, беря последний снимок ≤ шага.
+        var values = SampleValues(10, seed: 30);
+        var trace = TraceTournament(values);
+
+        int size = 1;
+        while (size < values.Length) size *= 2;
+        int nodes = 2 * size - 1;
+
+        // Стартовый снимок (шаг «Построение сетки»): участники на листьях, добивка пуста.
+        var start = trace.Steps.First((s) => s.Tree is not null);
+        Assert.Equal(ArrayStepKind.PassStart, start.Kind);
+        Assert.Equal(nodes, start.Tree!.Length);
+        for (int i = 0; i < size; i++)
+            Assert.Equal(i < values.Length ? i : -1, start.Tree[size - 1 + i]);
+        Assert.All(start.Tree.Take(size - 1), (v) => Assert.Equal(-1, v));
+
+        // Каждый матч: узел известен, в нём стоит победитель матча (MarkId — его Id).
+        var compares = trace.Steps.Where((s) => s.Kind == ArrayStepKind.Compare).ToList();
+        Assert.NotEmpty(compares);
+        foreach (var s in compares)
+        {
+            Assert.NotNull(s.Tree);
+            Assert.Equal(nodes, s.Tree!.Length);
+            Assert.NotNull(s.TreeNode);
+            int winnerPos = s.Tree[s.TreeNode!.Value];
+            Assert.True(winnerPos >= 0, "после матча в узле есть победитель");
+            Assert.Equal(s.MarkId, winnerPos); // Id победителя = элементы в этой позиции
+        }
+
+        // Каждое извлечение: лист победителя в снимке уже пуст (участник выбыл).
+        var extractions = trace.Steps
+            .Where((s) => s.Kind == ArrayStepKind.PassStart && s.TreeNode is not null).ToList();
+        Assert.Equal(values.Length, extractions.Count);
+        foreach (var s in extractions)
+        {
+            Assert.True(s.TreeNode!.Value >= size - 1, "выбыл лист сетки");
+            Assert.Equal(-1, s.Tree![s.TreeNode!.Value]);
+        }
+
+        // Корень перед каждым извлечением — k-е по порядку число (для возрастания).
+        var ordered = values.OrderBy(v => v).ToArray();
+        for (int k = 0; k < extractions.Count; k++)
+        {
+            int championPos = extractions[k].Tree![0];
+            Assert.True(championPos >= 0, "перед извлечением в корне есть победитель");
+            Assert.Equal(ordered[k], values[championPos]);
+        }
+
+        // Финальный снимок (последнее извлечение): сетка полностью опустела.
+        var lastTree = trace.Steps.Last((s) => s.Tree is not null).Tree!;
+        Assert.All(lastTree, (v) => Assert.Equal(-1, v));
+    }
+
+    [Fact]
+    public void TournamentSort_TraceTree_NotBuiltAboveLimit()
+    {
+        // Лимит режима «Дерево»: до него снимки есть, выше — трассировка без сетки,
+        // чтобы ответ не раздувался снимками, которые всё равно не нарисовать.
+        var within = TraceTournament(SampleValues(TournamentSort.TreeModeMaxElements, seed: 1));
+        Assert.Contains(within.Steps, (s) => s.Tree is not null);
+
+        var above = TraceTournament(SampleValues(TournamentSort.TreeModeMaxElements + 8, seed: 2));
+        Assert.All(above.Steps, (s) =>
+        {
+            Assert.Null(s.Tree);
+            Assert.Null(s.TreeNode);
+        });
+    }
+
+    [Fact]
+    public void Sorter_ListMethods_ReportsTreeModeLimitOnlyForTournament()
+    {
+        // Лимит «Дерева» отдаётся клиенту вместе со списком алгоритмов — единый источник.
+        var sorter = new ArraySorter(Algorithms);
+        var methods = sorter.ListMethods();
+        var tournament = methods.First((m) => m.Id == "tournament");
+        Assert.Equal(TournamentSort.TreeModeMaxElements, tournament.TreeModeMax);
+        Assert.All(methods.Where((m) => m.Id != "tournament"), (m) => Assert.Null(m.TreeModeMax));
+    }
+
     // ---------- режим трассировки (для визуализации) ----------
 
     [Theory]

@@ -45,6 +45,16 @@ public sealed class ArraySortStep
     /// SeriesB пустая.</summary>
     public int[]? SeriesA { get; init; }
     public int[]? SeriesB { get; init; }
+    /// <summary>Снимок турнирной сетки TournamentSort: tree[v] — позиция массива, чьё число
+    /// выигрывает в узле v, или -1, если участников не осталось. Листья — позиции
+    /// size-1..2·size-2 (добивка — свободные места), дети узла p — 2p+1 и 2p+2.
+    /// Прикладывается только к шагам, меняющим сетку (сравнение матча, выбытие участника);
+    /// null — сетка на этом шаге не менялась (клиент наследует последнюю). Для больших
+    /// массивов (свыше лимита режима «Дерево») снимки не строятся вовсе.</summary>
+    public int[]? Tree { get; init; }
+    /// <summary>Узел сетки, который этот шаг обновил: узел сыгранного матча или выбывший
+    /// лист; null — шаг не менял сетку.</summary>
+    public int? TreeNode { get; init; }
     public int[] MemoryIds { get; init; } = [];            // какие числа «в памяти» на этом шаге
     public string MemoryNote { get; init; } = string.Empty;
     public long Comparisons { get; init; }

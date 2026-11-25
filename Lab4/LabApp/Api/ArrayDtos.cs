@@ -40,6 +40,8 @@ public sealed record ArrayStepDto(
     int[]? BufferIds,
     int[]? SeriesA,
     int[]? SeriesB,
+    int[]? Tree,
+    int? TreeNode,
     int[] MemoryIds,
     string MemoryNote,
     long Comparisons,
@@ -86,7 +88,7 @@ public static class ArrayDtoMapper
                 s.Index, s.Kind.ToString(), s.Phase, s.Pass, s.PassTitle,
                 s.Desc, s.LogLine, s.LogKind,
                 s.ArrayIds, s.Highlights, s.MarkId, s.RangeIds, s.Placed, s.BufferIds,
-                s.SeriesA, s.SeriesB,
+                s.SeriesA, s.SeriesB, s.Tree, s.TreeNode,
                 s.MemoryIds, s.MemoryNote,
                 s.Comparisons, s.Moves, s.Passes))
             .ToList();

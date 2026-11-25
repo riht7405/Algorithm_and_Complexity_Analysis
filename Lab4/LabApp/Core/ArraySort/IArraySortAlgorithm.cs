@@ -48,9 +48,12 @@ public interface IArraySortAlgorithm
     }
 }
 
-/// <summary>Описание алгоритма внутренней сортировки для списка в интерфейсе.</summary>
+/// <summary>Описание алгоритма внутренней сортировки для списка в интерфейсе.
+/// treeModeMax — лимит чисел для второго режима визуализации «Дерево» (турнирная сетка);
+/// null — у алгоритма сетки нет и переключатель режима не показывается.</summary>
 public sealed record ArraySortMethodInfo(
-    string Id, string Title, string Group, string Badge, string ShortInfo, string PassesLabel, int MemorySlots);
+    string Id, string Title, string Group, string Badge, string ShortInfo, string PassesLabel,
+    int MemorySlots, int? TreeModeMax = null);
 
 /// <summary>Заголовки групп алгоритмов по классификации задания.</summary>
 public static class ArraySortGroups

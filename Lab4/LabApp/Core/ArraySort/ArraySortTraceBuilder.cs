@@ -30,6 +30,12 @@ public sealed class ArraySortTraceBuilder
     private int[]? _seriesA;
     private int[]? _seriesB;
     private bool _seriesDirty = true;               // первый шаг должен включить разметку серий
+    // Снимок турнирной сетки TournamentSort (позиции-победители, -1 — пусто); прикладывается
+    // к следующему шагу, как разметка серий. Копия хранится обязательно: алгоритм правит
+    // свой массив tree[] на месте, а снимки прошлых шагов меняться не должны.
+    private int[]? _tree;
+    private int? _treeNode;
+    private bool _treeDirty;
 
     public ArraySortTraceBuilder(ArrayEntry[] work, bool active)
     {
@@ -86,6 +92,18 @@ public sealed class ArraySortTraceBuilder
         _seriesA = [];
         _seriesB = [];
         _seriesDirty = true;
+    }
+
+    /// <summary>Снимок турнирной сетки TournamentSort после её изменения (сыгран матч,
+    /// выбыл участник). changedNode — узел, который шаг обновил, null — сетка обновилась
+    /// без одного выделенного узла (например выбыли сразу все). Снимок прикладывается
+    /// к следующему записанному шагу — как разметка серий MergeSort.</summary>
+    public void SetTree(int[] tree, int? changedNode)
+    {
+        if (!_active) return; // снимки сетки нужны только для трассировки
+        _tree = (int[])tree.Clone();
+        _treeNode = changedNode;
+        _treeDirty = true;
     }
 
     /// <summary>Сравнили два числа (стоят в массиве на позициях i и j).
@@ -216,6 +234,8 @@ public sealed class ArraySortTraceBuilder
             BufferIds = buffer,
             SeriesA = _seriesDirty ? _seriesA : null,
             SeriesB = _seriesDirty ? _seriesB : null,
+            Tree = _treeDirty ? _tree : null,
+            TreeNode = _treeDirty ? _treeNode : null,
             MemoryIds = memory,
             MemoryNote = note,
             Comparisons = _comparisons,
@@ -224,6 +244,7 @@ public sealed class ArraySortTraceBuilder
         });
         if (_placedDirty) _placedDirty = false;
         if (_seriesDirty) _seriesDirty = false;
+        if (_treeDirty) { _treeDirty = false; _treeNode = null; }
     }
 
     private int[] SnapshotArray()

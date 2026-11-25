@@ -22,6 +22,12 @@ public sealed class TournamentSort : IArraySortAlgorithm
     public string Badge => "O(n·log n)";
     public string PassesLabel => "извлечений";
     public int MemorySlots => 2;
+
+    /// <summary>Лимит режима визуализации «Дерево»: снимки турнирной сетки строятся только
+    /// для массивов до этого числа элементов — при большем размере сетка перестает
+    /// помещаться на экране (лист-row шире панели даже с прокруткой). Лимит отдаётся
+    /// клиенту через список алгоритмов, переключатель режима там блокируется сам.</summary>
+    public const int TreeModeMaxElements = 32;
     public string ShortInfo =>
         "Числа играют «матчи» на выбывание: лучший выходит в следующий круг, корень сетки — " +
         "победитель турнира. Извлекаем его в результат и переигрываем только его путь по сетке. " +
@@ -56,10 +62,16 @@ public sealed class TournamentSort : IArraySortAlgorithm
         int size = 1;
         while (size < n) size *= 2;
         var tree = new int[2 * size - 1];
+        Array.Fill(tree, None); // «пусто» во всей сетке — это видно и снимкам режима «Дерево»
+        bool traceTree = b.Active && n <= TreeModeMaxElements; // снимки сетки — только для «Дерева»
 
         bool Better(int x, int y) => descending ? x > y : x < y; // «x лучше y» с учётом направления
 
         // ---------- этап 1: строим сетку — соседние пары играют круг за кругом ----------
+        for (int i = 0; i < size; i++)
+            tree[size - 1 + i] = i < n ? i : None; // листья — позиции; добивка — свободные места
+        if (traceTree) b.SetTree(tree, null);      // сетка на старте: участники внизу, матчей ещё не было
+
         b.PassNext("Построение сетки", "соседние пары играют круг за кругом",
             b.Active
                 ? $"Участники — все {n} чисел. Играем круг за кругом: пары соседних участников, " +
@@ -67,9 +79,6 @@ public sealed class TournamentSort : IArraySortAlgorithm
                 : null,
             Enumerable.Range(0, n).Select(i => a[i].Id).ToArray(),
             "В памяти участники текущего матча.");
-
-        for (int i = 0; i < size; i++)
-            tree[size - 1 + i] = i < n ? i : None; // листья — позиции; добивка — свободные места
 
         for (int p = size - 2; p >= 0; p--)
         {
@@ -82,6 +91,8 @@ public sealed class TournamentSort : IArraySortAlgorithm
                 // При равных числах матч выигрывает участник из левой части — сортировка устойчивая.
                 bool firstBest = Better(a[w1].Value, a[w2].Value) || a[w1].Value == a[w2].Value;
                 int winner = firstBest ? w1 : w2;
+                tree[p] = winner;
+                if (traceTree) b.SetTree(tree, p); // снимок ПОСЛЕ матча: в узле уже стоит победитель
                 b.Compare(w1, w2,
                     b.Active
                         ? $"Матч: «{a[w1].Value}» (позиция {w1}) против «{a[w2].Value}» (позиция {w2}): " +
@@ -92,7 +103,6 @@ public sealed class TournamentSort : IArraySortAlgorithm
                         ? $"⚖ Матч: «{a[w1].Value}» vs «{a[w2].Value}» → «{a[winner].Value}»"
                         : null,
                     "В памяти участники матча.", winner);
-                tree[p] = winner;
             }
         }
 
@@ -101,6 +111,10 @@ public sealed class TournamentSort : IArraySortAlgorithm
         for (int k = 0; k < n; k++)
         {
             int win = tree[0];
+            int leaf = size - 1 + win;
+            tree[leaf] = None; // участник выбыл
+            if (traceTree) b.SetTree(tree, leaf); // сетка: лист победителя уже пуст (участник выбыл)
+
             b.PassNext("Извлечение", $"победитель — «{a[win].Value}»",
                 b.Active
                     ? $"Извлечение {k + 1}: в корне сетки {best} — «{a[win].Value}» (позиция {win}). " +
@@ -110,8 +124,6 @@ public sealed class TournamentSort : IArraySortAlgorithm
                 [a[win].Id],
                 "В памяти извлечённый победитель.");
 
-            int leaf = size - 1 + win;
-            tree[leaf] = None; // участник выбыл
             int v = (leaf - 1) / 2;
             while (v >= 0)
             {
@@ -123,6 +135,8 @@ public sealed class TournamentSort : IArraySortAlgorithm
                 {
                     bool firstBest = Better(a[w1].Value, a[w2].Value) || a[w1].Value == a[w2].Value;
                     int winner = firstBest ? w1 : w2;
+                    tree[v] = winner;
+                    if (traceTree) b.SetTree(tree, v); // снимок ПОСЛЕ матча: в узле новый победитель
                     b.Compare(w1, w2,
                         b.Active
                             ? $"Переигрываем путь: матч «{a[w1].Value}» (позиция {w1}) против " +
@@ -133,7 +147,6 @@ public sealed class TournamentSort : IArraySortAlgorithm
                             ? $"⚖ Матч: «{a[w1].Value}» vs «{a[w2].Value}» → «{a[winner].Value}»"
                             : null,
                         "В памяти участники матча.", winner);
-                    tree[v] = winner;
                 }
 
                 if (v == 0) break;
@@ -141,6 +154,7 @@ public sealed class TournamentSort : IArraySortAlgorithm
             }
 
             output[k] = a[win];
+            if (traceTree) b.SetTree(tree, null);  // итоговое состояние сетки после всех переигрываний
             b.Write(win,
                 b.Active
                     ? $"Победитель «{a[win].Value}» записан в выход — это позиция результата {k}."

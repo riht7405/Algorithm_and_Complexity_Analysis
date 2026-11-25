@@ -799,3 +799,82 @@ table.data tbody tr[data-id] { cursor: pointer; }
   .aArrayInput { font-size: 16px; }
 }
 
+/* ---------- Задание 1: переключатель режима сцены «Список ⇄ Дерево» ---------- */
+
+/* Переключатель стоит в панели воспроизведения рядом с кнопками; ползунок задержки
+   прижат к правому краю своим margin-left:auto — режимы занимают ровно нужное место. */
+.aModeSwitch { grid-template-columns: 1fr 1fr; width: fit-content; }
+.aModeSwitch .seg { white-space: nowrap; padding: 8px 10px; }
+.aModeSwitch .seg:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- Задание 1: режим 2 — сцена «Дерево» (турнирная сетка) ---------- */
+
+.treeCard { padding-bottom: 8px; }
+.treeSub { font-weight: 500; }
+
+/* Контейнер прокрутки: сетки шире панели листаются горизонтально, ничего не съезжает. */
+.treeScroll { overflow-x: auto; padding-bottom: 2px; }
+.treeSvg { display: block; margin: 0 auto; width: 100%; height: auto; }
+
+/* Ребро сетки; у текущего матча ребро победителя зелёное, проигравшего — блёклое штриховое */
+.tEdge { stroke: #d1d5db; stroke-width: 1.5; }
+.tEdge.tEdgeWin { stroke: var(--good); stroke-width: 2; }
+.tEdge.tEdgeLose { stroke: #9ca3af; stroke-width: 1.2; stroke-dasharray: 3 3; }
+
+/* Узлы: прямоугольник + значение по центру + номер места у листьев */
+.tnode .tBox {
+  fill: #fff; stroke: var(--line); stroke-width: 1.2;
+}
+.tnode.tLeaf .tBox { fill: var(--accent-soft); stroke: var(--accent-line); }
+.tnode.tGame .tBox { fill: #fff; }
+/* Пустые узлы: выбывший лист (в выход) и свободное место-добивка — штриховые, блёклые */
+.tnode.tOut .tBox { fill: #f9fafb; stroke: #d1d5db; stroke-dasharray: 4 3; }
+.tnode.tBye .tBox { fill: none; stroke: #d1d5db; stroke-dasharray: 3 3; }
+.tnode.tEmpty .tBox { fill: #f9fafb; stroke: #e5e7eb; stroke-dasharray: 4 3; }
+/* Победитель всего турнира (заполненный корень) — янтарный, как «чемпион» */
+.tnode.tChamp .tBox { fill: var(--warn-soft); stroke: var(--warn); }
+/* Текущий матч: рамка акцентом; победитель матча — зелёный, проигравший — блёклый */
+.tnode.tMatch .tBox { stroke: var(--accent); stroke-width: 2.4; fill: var(--accent-soft); }
+.tnode.tWin .tBox { fill: var(--good-soft); stroke: var(--good); stroke-width: 2; }
+.tnode.tWin .tVal { fill: var(--good); font-weight: 800; }
+.tnode.tLose { opacity: .45; }
+/* Корень на шаге извлечения: чемпион покидает сетку — янтарная пульсация рамки */
+.tnode.tLeaving .tBox {
+  stroke: var(--warn); stroke-width: 2.6; fill: var(--warn-soft);
+  animation: tLeavingPulse 1s ease-in-out infinite alternate;
+}
+@keyframes tLeavingPulse {
+  from { stroke-width: 1.6; }
+  to { stroke-width: 3; }
+}
+
+.tnode .tVal {
+  font-size: 11.5px; font-weight: 700; fill: var(--ink);
+  text-anchor: middle; dominant-baseline: central; font-family: inherit;
+  pointer-events: none;
+}
+.tnode.tOut .tVal, .tnode.tBye .tVal, .tnode.tEmpty .tVal { fill: var(--muted); font-weight: 400; }
+.tnode .tSeat {
+  font-size: 9.5px; fill: var(--muted);
+  text-anchor: middle; dominant-baseline: central; font-family: inherit;
+  pointer-events: none;
+}
+
+/* Мини-легенда режима дерева */
+.treeLegend {
+  display: flex; flex-wrap: wrap; gap: 5px 14px; align-items: center;
+  font-size: 11px; color: var(--muted);
+  border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 8px;
+}
+.tLeg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tSwatch {
+  width: 18px; height: 12px; border-radius: 4px; display: inline-block; flex: none;
+  background: #fff; border: 1.2px solid var(--line);
+}
+.tSwatch.tLeaf { background: var(--accent-soft); border-color: var(--accent-line); }
+.tSwatch.tGame { background: #fff; }
+.tSwatch.tMatch { border-color: var(--accent); border-width: 2px; background: var(--accent-soft); }
+.tSwatch.tWin { background: var(--good-soft); border-color: var(--good); }
+.tSwatch.tOut { background: #f9fafb; border-style: dashed; }
+.tSwatch.tBye { background: transparent; border-style: dashed; }
+
