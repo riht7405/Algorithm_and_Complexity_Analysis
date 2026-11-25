@@ -639,7 +639,7 @@
     const nodeW = Math.min(slotW - 8, 58);
     const nodeH = 30;
     const levelH = 66;
-    const padX = 12, padTop = 10;
+    const padX = 12, padTop = 20; // запас сверху: рамка корня (nodeH/2 + пульсация) не срезается
     const levels = Math.round(Math.log2(size)) + 1;
     const W = size * slotW + padX * 2;
     const H = (levels - 1) * levelH + padTop + nodeH / 2 + 21;
@@ -709,18 +709,32 @@
         `</g>`);
     }
 
-    // Ширина панели известна только при видимой вкладке: дерево до ~ширины панели
-    // масштабируется под неё (текст остаётся читаемым), более широкое — листается.
-    const avail = Math.max(scene.clientWidth - 26, 320);
-    const wide = W > avail * 1.18;
-    const svgStyle = wide ? `min-width:${W}px` : `max-width:${Math.round(W * 1.3)}px`;
-    const svg = `<svg class="treeSvg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" ` +
-      `style="${svgStyle}" role="img" aria-label="Турнирная сетка">${edges.join("")}${nodes.join("")}</svg>`;
+    // Панорама и масштаб. Начальный масштаб: дерево уже панели — вписывается в неё
+    // (с увеличением не более 1.3x), шире панели — в натуральную величину (двигают
+    // перетаскиванием и отдаляют до ~вписывания). Масштаб живёт между шагами: при
+    // перерисовке сцены на каждом шаге сетка остаётся под тем же зумом.
+    const avail = Math.max(scene.clientWidth - 24, 320);
+    const k0 = W <= avail ? Math.min(avail / W, 1.3) : 1;
+    const sig = size + ":" + W + "x" + H + ":" + Math.round(k0 * 100);
+    if (treeZoom.sig !== sig) treeZoom = { sig, k0, k: k0, vx: 0, vy: 0, W, H };
+    treeZoom.W = W;
+    treeZoom.H = H;
+    const elH = Math.max(Math.round(H * treeZoom.k0), 120);
+    const svg = `<svg class="treeSvg" data-tree-svg viewBox="0 0 ${W} ${H}" ` +
+      `style="height:${elH}px" role="img" aria-label="Турнирная сетка">${edges.join("")}${nodes.join("")}</svg>`;
 
     const treeCard = `
       <div class="aArrayWrap treeCard">
-        <div class="wArrayTitle">Турнирная сетка
-          <span class="treeSub">в корне — победитель турнира, внизу — участники; «—» — место опустело</span>
+        <div class="treeTitleRow">
+          <div class="wArrayTitle">Турнирная сетка
+            <span class="treeSub">в корне — победитель турнира, внизу — участники; «—» — место опустело</span>
+          </div>
+          <div class="treeZoomBar" title="Масштаб и панорама: колесо мыши или перетаскивание">
+            <button type="button" class="treeZoomBtn" data-zoom="out" title="Отдалить">−</button>
+            <span class="treeZoomVal">100%</span>
+            <button type="button" class="treeZoomBtn" data-zoom="in" title="Приблизить">+</button>
+            <button type="button" class="treeZoomBtn" data-zoom="reset" title="Сбросить масштаб">⟲</button>
+          </div>
         </div>
         <div class="treeScroll">${svg}</div>
         <div class="treeLegend">
@@ -739,6 +753,108 @@
         <div class="chips">${bits.arr.map((id) => bits.chipHtml(id)).join("")}</div>
       </div>
       ${bits.bufferHtml}`;
+    applyTreeView();
+  }
+
+  /* ---------------- панорама и масштаб режима «Дерево» ---------------- */
+
+  /* Состояние зума переживает перерисовки (шаги вперёд/назад не сбрасывают его);
+     sig — подпись геометрии: при смене размера сетки или ширины панели — сброс. */
+  let treeZoom = { sig: "", k0: 1, k: 1, vx: 0, vy: 0, W: 0, H: 0 };
+  const treeDrag = { pointers: new Map(), pinchDist: 0 };
+  const TREE_K_MIN = 0.3, TREE_K_MAX = 3;
+
+  function treeSvg() {
+    return document.querySelector("#aScene [data-tree-svg]");
+  }
+
+  /* viewBox = текущее «окно» просмотра: [vx, vy, ширина/к, высота/к].
+     Окно не выходит за содержимое: при отдалении — центрируется. */
+  function applyTreeView() {
+    const svg = treeSvg();
+    if (!svg || svg.clientWidth < 40 || !treeZoom.W) return;
+    const elW = svg.clientWidth, elH = svg.clientHeight;
+    const vw = elW / treeZoom.k, vh = elH / treeZoom.k;
+    const vxMin = Math.min(0, (treeZoom.W - vw) / 2), vxMax = Math.max(0, treeZoom.W - vw);
+    const vyMin = Math.min(0, (treeZoom.H - vh) / 2), vyMax = Math.max(0, treeZoom.H - vh);
+    treeZoom.vx = Math.min(vxMax, Math.max(vxMin, treeZoom.vx));
+    treeZoom.vy = Math.min(vyMax, Math.max(vyMin, treeZoom.vy));
+    svg.setAttribute("viewBox",
+      `${treeZoom.vx} ${treeZoom.vy} ${vw} ${vh}`);
+    const val = document.querySelector("#aScene .treeZoomVal");
+    if (val) val.textContent = Math.round(treeZoom.k * 100) + "%";
+  }
+
+  /* Приближение к точке экрана (clientX/clientY): точка под курсором остаётся на месте. */
+  function treeZoomAt(clientX, clientY, factor) {
+    const svg = treeSvg();
+    if (!svg) return;
+    const k2 = Math.min(TREE_K_MAX, Math.max(TREE_K_MIN, treeZoom.k * factor));
+    if (k2 === treeZoom.k) return;
+    const rect = svg.getBoundingClientRect();
+    const sx = clientX - rect.left, sy = clientY - rect.top;
+    treeZoom.vx += sx * (1 / treeZoom.k - 1 / k2);
+    treeZoom.vy += sy * (1 / treeZoom.k - 1 / k2);
+    treeZoom.k = k2;
+    applyTreeView();
+  }
+
+  function treeZoomAction(kind) {
+    if (kind === "reset") {
+      treeZoom.k = treeZoom.k0;
+      treeZoom.vx = 0;
+      treeZoom.vy = 0;
+    } else if (kind === "in" || kind === "out") {
+      const svg = treeSvg();
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      treeZoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, kind === "in" ? 1.25 : 0.8);
+      return;
+    } else {
+      return;
+    }
+    applyTreeView();
+  }
+
+  function treePointerDown(e) {
+    const wrap = e.target.closest(".treeScroll");
+    if (!wrap) return;
+    e.preventDefault();
+    try { wrap.setPointerCapture(e.pointerId); } catch { /* синтетическое событие без активного указателя */ }
+    treeDrag.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (treeDrag.pointers.size === 2) {
+      const [p1, p2] = [...treeDrag.pointers.values()];
+      treeDrag.pinchDist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    }
+    wrap.classList.add("grabbing");
+  }
+
+  function treePointerMove(e) {
+    if (!treeDrag.pointers.has(e.pointerId)) return;
+    e.preventDefault();
+    const prev = treeDrag.pointers.get(e.pointerId);
+    treeDrag.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (treeDrag.pointers.size === 1) {
+      // панорама: окно просмотра движется против курсора, в единицах содержимого
+      treeZoom.vx -= (e.clientX - prev.x) / treeZoom.k;
+      treeZoom.vy -= (e.clientY - prev.y) / treeZoom.k;
+      applyTreeView();
+    } else if (treeDrag.pointers.size === 2) {
+      const [p1, p2] = [...treeDrag.pointers.values()];
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      if (treeDrag.pinchDist > 0 && dist > 0) {
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        treeZoomAt(mx, my, dist / treeDrag.pinchDist);
+      }
+      treeDrag.pinchDist = dist;
+    }
+  }
+
+  function treePointerUp(e) {
+    if (!treeDrag.pointers.delete(e.pointerId)) return;
+    if (treeDrag.pointers.size < 2) treeDrag.pinchDist = 0;
+    const wrap = document.querySelector("#aScene .treeScroll");
+    if (wrap && treeDrag.pointers.size === 0) wrap.classList.remove("grabbing");
   }
 
   function labelOf(id) {
@@ -1343,6 +1459,25 @@
     // Переключение режима сцены «Список ⇄ Дерево»: представление меняется, состояние нет.
     $("aModeChips").addEventListener("click", () => setViewMode("chips"));
     $("aModeTree").addEventListener("click", () => setViewMode("tree"));
+
+    // Панорама и масштаб дерева: кнопки «− / + / ⟲», колесо мыши (событие синхронное —
+    // preventDefault требует passive: false), перетаскивание и щипок на тач-экране.
+    // Слушатели навешаны один раз на сцену и работают через делегирование:
+    // сцена перерисовывается на каждом шаге, а зум сохраняется.
+    const aScene = $("aScene");
+    aScene.addEventListener("click", (e) => {
+      const btn = e.target.closest(".treeZoomBtn");
+      if (btn) treeZoomAction(btn.dataset.zoom);
+    });
+    aScene.addEventListener("wheel", (e) => {
+      if (!e.target.closest(".treeScroll")) return;
+      e.preventDefault();
+      treeZoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    }, { passive: false });
+    aScene.addEventListener("pointerdown", treePointerDown);
+    aScene.addEventListener("pointermove", treePointerMove);
+    aScene.addEventListener("pointerup", treePointerUp);
+    aScene.addEventListener("pointercancel", treePointerUp);
 
     // Вкладки заданий переключает app.js (классами). Пока вкладка 1 скрыта, ширина сцены
     // неизвестна (clientWidth = 0), поэтому после показа вкладки перерисовываем сцену —

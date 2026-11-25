@@ -812,9 +812,35 @@ table.data tbody tr[data-id] { cursor: pointer; }
 .treeCard { padding-bottom: 8px; }
 .treeSub { font-weight: 500; }
 
-/* Контейнер прокрутки: сетки шире панели листаются горизонтально, ничего не съезжает. */
-.treeScroll { overflow-x: auto; padding-bottom: 2px; }
-.treeSvg { display: block; margin: 0 auto; width: 100%; height: auto; }
+/* Строка заголовка сетки: слева название, справа — панель масштаба */
+.treeTitleRow {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 6px 14px; flex-wrap: wrap;
+}
+.treeZoomBar { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.treeZoomVal {
+  min-width: 42px; text-align: center;
+  font-size: 11.5px; color: var(--muted); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.treeZoomBtn {
+  width: 28px; height: 28px; padding: 0;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); color: var(--ink);
+  font-size: 15px; font-weight: 700; line-height: 1;
+  cursor: pointer;
+}
+.treeZoomBtn:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+
+/* Область сетки: панорама перетаскиванием и щипком, поэтому прокрутка отключена;
+   touch-action разрешает pointer-события на тач-экране (иначе браузер скроллит страницу). */
+.treeScroll {
+  overflow: hidden; padding-bottom: 2px;
+  touch-action: none; user-select: none;
+  cursor: grab;
+}
+.treeScroll.grabbing { cursor: grabbing; }
+.treeSvg { display: block; width: 100%; }
 
 /* Ребро сетки; у текущего матча ребро победителя зелёное, проигравшего — блёклое штриховое */
 .tEdge { stroke: #d1d5db; stroke-width: 1.5; }
