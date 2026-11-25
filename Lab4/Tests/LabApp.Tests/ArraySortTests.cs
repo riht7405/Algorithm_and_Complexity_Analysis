@@ -4,7 +4,7 @@ using Xunit;
 
 namespace LabApp.Tests;
 
-/// <summary>Задание 1: все три алгоритма внутренней сортировки действительно сортируют,
+/// <summary>Задание 1: все четыре алгоритма внутренней сортировки действительно сортируют,
 /// трассировка согласована с тихим режимом, замеры времени возвращают числа.</summary>
 public class ArraySortTests
 {
@@ -13,6 +13,7 @@ public class ArraySortTests
         new SelectSort(),
         new InsertSort(),
         new MergeSort(),
+        new TournamentSort(),
     ];
 
     public static IEnumerable<object[]> AlgorithmIds() =>
@@ -130,6 +131,46 @@ public class ArraySortTests
                 .Select(g => (key: g.Key, ids: g.Select(p => p.e.Id).ToList()));
             foreach (var (_, ids) in byValue)
                 Assert.Equal(ids.OrderBy(i => i), ids);
+        }
+    }
+
+    [Fact]
+    public void TournamentSort_IsStableOnEqualValues()
+    {
+        // При равных числах матч выигрывает участник из левой части сетки — исходный порядок
+        // равных сохраняется: их исходные Id в отсортированном массиве возрастают.
+        IArraySortAlgorithm tournament = new TournamentSort();
+        var values = new[] { 3, 1, 3, 2, 3, 1, 2, 3 };
+        foreach (bool desc in new[] { false, true })
+        {
+            var entries = MakeEntries(values);
+            tournament.SortQuiet(entries, desc);
+            AssertSorted(entries, desc);
+            var byValue = entries.Select((e, i) => (e, i))
+                .GroupBy(p => p.e.Value)
+                .Select(g => (key: g.Key, ids: g.Select(p => p.e.Id).ToList()));
+            foreach (var (_, ids) in byValue)
+                Assert.Equal(ids.OrderBy(i => i), ids);
+        }
+    }
+
+    [Fact]
+    public void TournamentSort_ComparisonsGrowLikeNLogN()
+    {
+        // Сетка строится за n-1 матчей, каждое извлечение переигрывает путь — не больше
+        // ⌈log₂ n⌉ матчей на извлечение. Итого квадратичного роста быть не должно:
+        // при удвоении объёма сравнения растут меньше чем вдвое.
+        IArraySortAlgorithm tournament = new TournamentSort();
+        double prev = 0;
+        foreach (int n in new[] { 500, 1000, 2000 })
+        {
+            var stats = tournament.SortQuiet(MakeEntries(SampleValues(n, seed: n)), descending: false);
+            Assert.True(stats.Comparisons >= n - 1, "построение сетки стоит n-1 матчей");
+            Assert.True(stats.Comparisons < 2 * n * Math.Ceiling(Math.Log2(Math.Max(n, 2))),
+                "сравнений не больше 2·n·log₂ n");
+            if (prev > 0)
+                Assert.True(stats.Comparisons / prev < 2.6, $"рост {prev} → {stats.Comparisons} нелинеен, но не квадратичен");
+            prev = stats.Comparisons;
         }
     }
 

@@ -42,6 +42,7 @@ builder.Services.AddSingleton<WordSorter>();
 builder.Services.AddSingleton<IArraySortAlgorithm, SelectSort>();
 builder.Services.AddSingleton<IArraySortAlgorithm, InsertSort>();
 builder.Services.AddSingleton<IArraySortAlgorithm, MergeSort>();
+builder.Services.AddSingleton<IArraySortAlgorithm, TournamentSort>();
 builder.Services.AddSingleton<ArraySorter>();
 
 var app = builder.Build();

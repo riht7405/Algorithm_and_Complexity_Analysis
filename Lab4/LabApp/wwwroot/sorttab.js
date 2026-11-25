@@ -471,7 +471,7 @@
     if (buffer) {
       bufferHtml = `
       <div class="aArrayWrap">
-        <div class="wArrayTitle">Буфер слияния</div>
+        <div class="wArrayTitle">${state.method === "tournament" ? "Выход турнира" : "Буфер слияния"}</div>
         <div class="chips">${buffer.length === 0
           ? '<span class="ghost">пусто</span>'
           : buffer.map((id) => chipHtml(id, ["aBuf"])).join("")}</div>
