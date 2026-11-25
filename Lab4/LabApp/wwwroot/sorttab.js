@@ -761,7 +761,7 @@
       return;
     }
     const algo = $("aBenchAlgo").value;
-    const max = clampInt($("aBenchMax"), 100, 30000, 10000);
+    const max = clampInt($("aBenchMax"), 100, 100000, 10000);
     const step = clampInt($("aBenchStep"), 1, max, 2000);
     const runs = clampInt($("aBenchRuns"), 1, 50, 3);
     const lengths = [];

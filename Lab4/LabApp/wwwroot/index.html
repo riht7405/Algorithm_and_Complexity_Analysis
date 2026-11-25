@@ -157,11 +157,12 @@
             </label>
             <label class="field">
               <span>Максимальный объём (чисел)</span>
-              <input type="number" id="aBenchMax" min="100" max="30000" step="1" value="10000">
+              <input type="number" id="aBenchMax" min="100" max="100000" step="1" value="10000">
+              <span class="fieldHint">максимум — 100 000 чисел</span>
             </label>
             <label class="field">
               <span>Шаг (чисел)</span>
-              <input type="number" id="aBenchStep" min="1" max="30000" step="1" value="2000">
+              <input type="number" id="aBenchStep" min="1" max="100000" step="1" value="2000">
             </label>
             <label class="field">
               <span>Прогонов на точку</span>
@@ -173,9 +174,9 @@
               <span class="benchSpinDot"></span><span>Замеряем время — график появится, когда замер завершится…</span>
             </div>
             <div id="aBenchStatus" class="benchStatus"></div>
-            <span class="fieldHint">квадратичные алгоритмы растут как n², поэтому объём точки
-              не превышает 30 000 чисел; массив на каждый объём генерируется с фиксированным
-              сидом — замеры воспроизводимы</span>
+            <span class="fieldHint">квадратичные алгоритмы растут как n² — на больших объёмах
+              точка меряется долго (прерывай кнопкой «Остановить»); массив на каждый объём
+              генерируется с фиксированным сидом — замеры воспроизводимы</span>
           </aside>
           <div class="benchMain">
             <div class="chartHead">
@@ -471,6 +472,7 @@
             <label class="field">
               <span>Максимальный объём (слов)</span>
               <input type="number" id="wBenchMax" min="100" max="1000000" step="1" value="100000">
+              <span class="fieldHint">максимум — 1 000 000 слов</span>
             </label>
             <label class="field">
               <span>Шаг (слов)</span>
@@ -533,7 +535,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="app.js?v=20261125a"></script>
-<script src="sorttab.js?v=20261125b"></script>
+<script src="sorttab.js?v=20261125c"></script>
 <script src="wordtab.js?v=20261125b"></script>
 </body>
 </html>
