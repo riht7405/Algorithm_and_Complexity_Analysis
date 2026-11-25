@@ -16,10 +16,10 @@ public sealed class SelectSort : IArraySortAlgorithm
     public string Group => ArraySortGroups.Quadratic;
     public string Badge => "O(n²)";
     public string PassesLabel => "проходов";
-    public int MemorySlots => 3;
+    public int MemorySlots => 2;
     public string ShortInfo =>
         "Ищем самое маленькое число в неотсортированной части и ставим его в начало — так растёт отсортированная часть. " +
-        "В памяти: проверяемое число, текущий минимум и граница отсортированной части.";
+        "В памяти: проверяемое число и текущий минимум.";
 
     public void Sort(ArrayEntry[] a, bool descending, ArraySortTraceBuilder b)
     {

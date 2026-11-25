@@ -39,6 +39,12 @@ public sealed class ArraySortStep
     public int[]? RangeIds { get; init; }                  // текущий рабочий кусок (Id)
     public int[]? Placed { get; init; }                    // числа, уже стоящие на финальных местах (Id)
     public int[]? BufferIds { get; init; }                 // снимок буфера слияния (null — буфер не используется)
+    /// <summary>Серии, которые сейчас сливает MergeSort: SeriesA — левая, SeriesB — правая.
+    /// Пустой список — серии сброшены (между парами и на старте прохода); null — алгоритм
+    /// серии не размечает (SelectSort, InsertSort). Серия без пары: SeriesA заполнена,
+    /// SeriesB пустая.</summary>
+    public int[]? SeriesA { get; init; }
+    public int[]? SeriesB { get; init; }
     public int[] MemoryIds { get; init; } = [];            // какие числа «в памяти» на этом шаге
     public string MemoryNote { get; init; } = string.Empty;
     public long Comparisons { get; init; }

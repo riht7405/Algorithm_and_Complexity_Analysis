@@ -234,9 +234,80 @@ public class ArraySortTests
         // После CopyBack буфер пуст, а весь массив переписан.
         Assert.All(copyBacks, (s) => Assert.Empty(s.BufferIds!));
         Assert.Equal(values.Length, copyBacks[^1].ArrayIds!.Length);
+        // После CopyBack серии уже сброшены (пустой список — не null).
+        Assert.All(copyBacks, (s) => Assert.NotNull(s.SeriesA));
+        Assert.All(copyBacks, (s) => Assert.Empty(s.SeriesA!));
         // Проходов слияния — ⌈log₂ n⌉: серии удваиваются за проход.
         int expectedPasses = (int)Math.Ceiling(Math.Log2(values.Length));
         Assert.Equal(expectedPasses, trace.TotalPasses);
+    }
+
+    [Fact]
+    public void MergeSort_TraceMarksSeriesOfCurrentPair()
+    {
+        // Визуализация серий: во время слияния пары чипы каждой серии обводятся своей группой.
+        // Серии живут как «снимок»: шаги без собственной разметки наследуют последнюю (как
+        // snapshotAt на клиенте), поэтому у каждого сравнения слияния серии размечены.
+        var algo = Algorithms.First(a => a.Id == "merge");
+        var values = SampleValues(12, seed: 21);
+        var work = MakeEntries(values);
+        var builder = new ArraySortTraceBuilder(work, active: true);
+        algo.Sort(work, descending: false, builder);
+        var trace = builder.Build(work.Select(w => w.Id).ToArray());
+
+        int[]? SeriesAt(int i, string field)
+        {
+            for (int j = Math.Min(i, trace.Steps.Count - 1); j >= 0; j--)
+            {
+                var value = field == "A" ? trace.Steps[j].SeriesA : trace.Steps[j].SeriesB;
+                if (value is not null) return value;
+            }
+            return null;
+        }
+
+        var compareSteps = trace.Steps.Where((s) => s.Kind == ArrayStepKind.Compare).ToList();
+        Assert.NotEmpty(compareSteps);
+        foreach (var s in compareSteps)
+        {
+            var a = SeriesAt(s.Index, "A");
+            var b = SeriesAt(s.Index, "B");
+            Assert.NotNull(a);
+            Assert.NotNull(b);
+            Assert.True(a!.Length > 0, "левая серия размечена на каждом сравнении");
+            Assert.True(b!.Length > 0, "правая серия размечена на каждом сравнении");
+            Assert.Equal(0, a!.Intersect(b!).Count());
+        }
+    }
+
+    [Fact]
+    public void MergeSort_TraceSeries_AreDisjointAndCoverPair()
+    {
+        var algo = Algorithms.First(a => a.Id == "merge");
+        var values = SampleValues(12, seed: 21);
+        var work = MakeEntries(values);
+        var builder = new ArraySortTraceBuilder(work, active: true);
+        algo.Sort(work, descending: false, builder);
+        var trace = builder.Build(work.Select(w => w.Id).ToArray());
+
+        // На каждом шаге с разметкой серии не пересекаются; у серии без пары правая пустая.
+        foreach (var s in trace.Steps.Where((s) => s.SeriesA is { Length: > 0 }))
+        {
+            var overlap = s.SeriesA!.Intersect(s.SeriesB ?? []).Count();
+            Assert.Equal(0, overlap);
+        }
+        // Есть шаги обычных пар (обе серии непустые) и шаги серии без пары (правая пустая).
+        Assert.Contains(trace.Steps, (s) => s.SeriesA is { Length: > 0 } && s.SeriesB is { Length: > 0 });
+        Assert.Contains(trace.Steps, (s) => s.SeriesA is { Length: > 0 } && s.SeriesB is { Length: 0 });
+        // У SelectSort и InsertSort серии не размечаются.
+        foreach (string id in new[] { "select", "insert" })
+        {
+            var other = Algorithms.First(a => a.Id == id);
+            var w2 = MakeEntries(values);
+            var b2 = new ArraySortTraceBuilder(w2, active: true);
+            other.Sort(w2, descending: false, b2);
+            var t2 = b2.Build(w2.Select(x => x.Id).ToArray());
+            Assert.All(t2.Steps, (s) => Assert.Null(s.SeriesA));
+        }
     }
 
     [Fact]

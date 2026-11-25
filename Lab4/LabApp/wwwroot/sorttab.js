@@ -1,10 +1,11 @@
 /* Лабораторная 4, задание 1 — пошаговая визуализация внутренних сортировок массива чисел
    (SelectSort, InsertSort, MergeSort) и замеры времени. Ванильный JS, без сборки.
-   Массив вводится вручную или генерируется кнопкой; у случайных массивов запоминается сид,
-   поэтому один и тот же массив можно пересортировать другим алгоритмом или в другом порядке.
-   У каждого сочетания настроек (массив, алгоритм, порядок) — своя независимая сессия:
-   переключение туда-обратно сохраняет прогресс. Замеры времени полностью независимы
-   от настроек демонстрации и внешне повторяют панель замеров задания 3. */
+   Массив вводится вручную или генерируется кнопкой. Как в задании 2, у каждого сочетания
+   настроек (массив, алгоритм, порядок) — своя независимая сессия: сделал несколько шагов,
+   переключился на другую сортировку и вернулся — прогресс на месте. Новая сессия появляется
+   только когда меняется сам массив (кнопка «Сгенерировать» или правка поля).
+   Замеры времени полностью независимы от настроек демонстрации и внешне повторяют
+   панель замеров задания 3. */
 "use strict";
 
 (() => {
@@ -17,7 +18,6 @@
     method: "select",
     ascending: true,
     valuesKey: "",        // ключ массива (нормализованный список чисел через запятую)
-    random: null,         // {count, seed} — массив пришёл от генератора и не редактировался
     sessions: new Map(),  // ключ настроек -> {plan, cursor, resultShown}
     sessionKey: "",
     plan: null,           // план текущей сессии (ответ /api/array-sort/run)
@@ -74,6 +74,7 @@
     state.methods = methods;
 
     renderMethods();
+    updateLegend();
     fillBenchAlgo();
     loadBench();
     renderBenchAll(); // сохранённые замеры показываем сразу при открытии страницы
@@ -83,7 +84,6 @@
     try {
       const rnd = await post("/api/array-sort/random", { count: 16, seed: 2026 });
       $("aArrayInput").value = rnd.values.join(" ");
-      state.random = { count: rnd.values.length, seed: rnd.seed };
     } catch { /* начнём с пустого поля — пользователь введёт числа сам */ }
     onArrayInput(); // заполняем значения по умолчанию и сессию
   }
@@ -98,12 +98,10 @@
       .filter((t) => t.length > 0);
   }
 
+  /* Массив определяет сессию: правка поля или «Сгенерировать» дают новый массив —
+     это новая сессия с нуля; смена алгоритма/порядка сессию не сбрасывает. */
   function onArrayInput() {
     state.valuesKey = readValues().join(",");
-    if (state.random && state.random.count !== readValues().length) {
-      // Пользователь отредактировал сгенерированный массив — сид больше не соответствует
-      state.random = null;
-    }
     state.sessionKey = sessionKey();
     restoreSession();
   }
@@ -115,7 +113,10 @@
     btn.textContent = "Генерирую…";
     hideError();
     try {
-      await loadRandom(count, null); // без сидa — каждый раз новый случайный массив
+      const rnd = await post("/api/array-sort/random", { count });
+      stopPlayback();
+      $("aArrayInput").value = rnd.values.join(" ");
+      onArrayInput(); // новый массив — новая сессия с нуля
     } catch (err) {
       showError(err.message);
     } finally {
@@ -124,28 +125,9 @@
     }
   }
 
-  /* Случайный массив с сервера; переданный seed даёт тот же массив — так один массив
-     пересортируется другим алгоритмом или в другом порядке. */
-  async function loadRandom(count, seed) {
-    const rnd = await post("/api/array-sort/random", { count, seed: seed ?? undefined });
-    stopPlayback();
-    $("aArrayInput").value = rnd.values.join(" ");
-    state.random = { count: rnd.values.length, seed: rnd.seed };
-    state.valuesKey = rnd.values.join(",");
-    state.sessionKey = "random"; // случайные сессии не кэшируются и не восстанавливаются
-    state.plan = null;
-    state.cursor = -1;
-    state.logStep = -1;
-    state.resultShown = false;
-    renderSessionView({ animateLog: false, record: false });
-    updateButtons();
-    updatePlayBtn();
-  }
-
   /* ---------------- сессии настроек ---------------- */
 
   function sessionKey() {
-    if (state.random) return "random"; // случайные сессии не сохраняются — как в задании 3
     return JSON.stringify({
       v: state.valuesKey,
       m: state.method,
@@ -154,7 +136,7 @@
   }
 
   function syncSession() {
-    if (!state.plan || state.random) return; // случайные массивы не сохраняем — они каждый раз новые
+    if (!state.plan) return;
     if (!state.sessions.has(state.sessionKey) && state.sessions.size >= 12) {
       for (const k of state.sessions.keys()) {
         if (k !== state.sessionKey) { state.sessions.delete(k); break; }
@@ -187,21 +169,13 @@
     updatePlayBtn();
   }
 
-  /* Смена алгоритма или порядка: у случайного массива запрашиваем тот же массив по сиду,
-     у своего — переиспользуем план из сессии (трассировка не пересчитывается). */
-  async function onSettingsChanged() {
+  /* Смена алгоритма или порядка: переиспользуем план из сессии этого сочетания настроек —
+     трассировка не пересчитывается, прогресс каждого сочетания сохраняется. */
+  function onSettingsChanged() {
     stashSession();
     state.sessionKey = sessionKey();
-    if (state.random) {
-      hideError();
-      try {
-        await loadRandom(state.random.count, state.random.seed);
-      } catch (err) {
-        showError(err.message);
-      }
-    } else {
-      restoreSession();
-    }
+    hideError();
+    restoreSession();
   }
 
   /* ---------------- алгоритмы: карточки с группами ---------------- */
@@ -230,15 +204,25 @@
         <div class="mInfo">в памяти: ${m.memorySlots} знач. · счётчик: ${escapeHtml(m.passesLabel)}</div>
       </div>`).join("")).join("");
     list.querySelectorAll(".methodCard").forEach((card) => {
-      card.addEventListener("click", async () => {
+      card.addEventListener("click", () => {
         const id = card.dataset.method;
         if (id === state.method) return;
-        stashSession();
         state.method = id;
         list.querySelectorAll(".methodCard").forEach((c) => c.classList.toggle("active", c === card));
-        await onSettingsChanged();
+        updateLegend();
+        onSettingsChanged(); // stash внутри: план прежнего сочетания сохранится под своим ключом
       });
     });
+  }
+
+  /* Легенда показывает только то, что используется выбранным алгоритмом:
+     «особое число» — разметка текущего минимума в SelectSort, «в буфере слияния» — MergeSort. */
+  const MARK_ALGOS = new Set(["select"]);
+  const BUF_ALGOS = new Set(["merge"]);
+
+  function updateLegend() {
+    $("aLegendMark").hidden = !MARK_ALGOS.has(state.method);
+    $("aLegendBuf").hidden = !BUF_ALGOS.has(state.method);
   }
 
   /* ---------------- запуск и воспроизведение ---------------- */
@@ -428,21 +412,58 @@
     const placed = new Set((state.cursor >= 0 ? snapshotAt("placed", state.cursor) : []) || []);
     const range = new Set((state.cursor >= 0 ? snapshotAt("rangeIds", state.cursor) : []) || []);
     const buffer = state.cursor >= 0 ? snapshotAt("bufferIds", state.cursor) : null;
+    // Серии текущей пары слияния (MergeSort): снимок последнего шага с разметкой;
+    // пустой список — разметка сброшена, null — алгоритм серии не размечает.
+    const seriesA = state.cursor >= 0 ? snapshotAt("seriesA", state.cursor) : null;
+    const seriesB = state.cursor >= 0 ? snapshotAt("seriesB", state.cursor) : null;
     const step = state.plan.steps[state.cursor];
     const hi = new Set(step && step.highlights ? step.highlights : []);
     const mem = new Set(step && step.memoryIds ? step.memoryIds : []);
     const isMove = step && (step.kind === "Swap" || step.kind === "Shift" || step.kind === "Write" ||
       step.kind === "CopyBack");
 
-    const chips = arr.map((id) => {
-      const cls = ["chip", "wchip"];
+    const chipHtml = (id, extra = []) => {
+      const cls = ["chip", "wchip", ...extra];
       if (placed.has(id)) cls.push("wPlaced");
       if (range.has(id)) cls.push("wRange");
-      if (step && id === step.markId) cls.push("wPivot");
+      // Особое число (текущий минимум в SelectSort) — фиолетовое и только фиолетовое:
+      // оно всегда и «в памяти», но жёлтая раскраска памяти перекрыла бы фиолетовую
+      // (в CSS .wMem идёт после .wPivot), поэтому для особого числа wMem не добавляем.
+      const isMark = step && id === step.markId;
+      if (isMark) cls.push("wPivot");
       else if (hi.has(id)) cls.push(isMove ? "wSwap" : "wCmp");
-      if (mem.has(id)) cls.push("wMem");
+      if (mem.has(id) && !isMark) cls.push("wMem");
       return `<span class="${cls.join(" ")}" title="${escapeHtml(titleOf(id))}">${escapeHtml(labelOf(id))}</span>`;
-    }).join("");
+    };
+
+    /* Чипы массива. Если MergeSort разметил серии — чипы каждой серии обводятся в свою
+       группу с подписью (как «Серия N» на лентах внешней сортировки): чипы серии стоят
+       в массиве подряд, поэтому разрезаем ряд на сегменты-группы. */
+    let chips;
+    if (seriesA && seriesA.length > 0) {
+      const setA = new Set(seriesA);
+      const setB = new Set(seriesB || []);
+      const hasPair = (seriesB || []).length > 0;
+      const labelA = hasPair ? "серия 1 · левая" : "серия без пары";
+      const labelB = "серия 2 · правая";
+      const parts = [];
+      let i = 0;
+      while (i < arr.length) {
+        const inA = setA.has(arr[i]);
+        const inB = !inA && setB.has(arr[i]);
+        if (!inA && !inB) { parts.push(chipHtml(arr[i])); i++; continue; }
+        const set = inA ? setA : setB;
+        const label = inA ? labelA : labelB;
+        const groupChips = [];
+        let j = i;
+        while (j < arr.length && set.has(arr[j])) { groupChips.push(chipHtml(arr[j])); j++; }
+        parts.push(`<span class="runGroup aRunGroup"><span class="runNo">${label}</span>${groupChips.join("")}</span>`);
+        i = j;
+      }
+      chips = parts.join("");
+    } else {
+      chips = arr.map((id) => chipHtml(id)).join("");
+    }
 
     // Буфер слияния: снимок на текущем шаге; null — алгоритм буфер не использует,
     // пустой список — буфер показан пустым (например в начале прохода после CopyBack).
@@ -453,12 +474,7 @@
         <div class="wArrayTitle">Буфер слияния</div>
         <div class="chips">${buffer.length === 0
           ? '<span class="ghost">пусто</span>'
-          : buffer.map((id) => {
-              const cls = ["chip", "wchip", "aBuf"];
-              if (hi.has(id)) cls.push(isMove ? "wSwap" : "wCmp");
-              if (mem.has(id)) cls.push("wMem");
-              return `<span class="${cls.join(" ")}" title="${escapeHtml(titleOf(id))}">${escapeHtml(labelOf(id))}</span>`;
-            }).join("")}</div>
+          : buffer.map((id) => chipHtml(id, ["aBuf"])).join("")}</div>
       </div>`;
     }
 
@@ -754,9 +770,9 @@
       $("aBenchStatus").textContent = "Шаг больше максимального объёма — нечего мерить.";
       return;
     }
-    if (lengths.length > 100) {
+    if (lengths.length > 200) {
       $("aBenchStatus").textContent =
-        `Слишком много точек (${lengths.length}). Увеличь шаг или уменьши максимальный объём.`;
+        `Слишком много точек (${lengths.length}). Максимум — 200: увеличь шаг или уменьши максимальный объём.`;
       return;
     }
     state.benchRunning = true;
@@ -1182,12 +1198,7 @@
     $("aAscBtn").classList.toggle("active", ascending);
     $("aDescBtn").classList.toggle("active", !ascending);
     state.sessionKey = sessionKey();
-    if (state.random) {
-      // у случайного массива пересортируем тот же массив (по сиду) в новом порядке
-      loadRandom(state.random.count, state.random.seed).catch((err) => showError(err.message));
-    } else {
-      restoreSession();
-    }
+    restoreSession(); // прогресс порядка «▲/▼» для этого массива — из своей сессии
   }
 
   init();

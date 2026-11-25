@@ -26,6 +26,10 @@ public sealed class ArraySortTraceBuilder
     private string _phase = "Подготовка";
     private int _passNo;
     private string? _passTitle;
+    // Серии, которые сейчас сливает MergeSort (Id чисел); пустой список — сброшены.
+    private int[]? _seriesA;
+    private int[]? _seriesB;
+    private bool _seriesDirty = true;               // первый шаг должен включить разметку серий
 
     public ArraySortTraceBuilder(ArrayEntry[] work, bool active)
     {
@@ -49,7 +53,8 @@ public sealed class ArraySortTraceBuilder
 
     /// <summary>Начало прохода с авто-номером: новый выбор минимума, вставка, слияние.
     /// desc может быть null в тихом режиме (замер времени) — шаг всё равно не пишется.
-    /// clearBuffer — на старте прохода буфер прошлого прохода неактуален.</summary>
+    /// clearBuffer — на старте прохода буфер прошлого прохода неактуален.
+    /// Проход — новый этап, разметка серий прошлого прохода сбрасывается.</summary>
     public void PassNext(string phase, string title, string? desc, int[]? rangeIds, string memoryNote,
         bool clearBuffer = false)
     {
@@ -57,9 +62,30 @@ public sealed class ArraySortTraceBuilder
         _autoPass++;
         _passNo = _autoPass;
         _passTitle = $"Проход {_autoPass}: {title}";
+        ClearSeries();
         AddStep(ArrayStepKind.PassStart, desc, $"--- {_passTitle} ---", "phase",
             memory: [], note: memoryNote, rangeIds: rangeIds,
             buffer: clearBuffer ? [] : null);
+    }
+
+    /// <summary>Разметка серий для MergeSort: leftIds — числа левой серии, rightIds — правой
+    /// (пустой список rightIds — серия без пары). Визуализация обводит чипы каждой серии
+    /// в свою группу с подписью — как ленты-серии во внешней сортировке.</summary>
+    public void SetSeries(int[] leftIds, int[] rightIds)
+    {
+        if (!_active) return; // разметка нужна только для трассировки
+        _seriesA = leftIds;
+        _seriesB = rightIds;
+        _seriesDirty = true;
+    }
+
+    /// <summary>Сброс разметки серий: пара слилась, до следующей пары массив показывается без групп.</summary>
+    public void ClearSeries()
+    {
+        if (!_active || (_seriesA is null && _seriesB is null)) return;
+        _seriesA = [];
+        _seriesB = [];
+        _seriesDirty = true;
     }
 
     /// <summary>Сравнили два числа (стоят в массиве на позициях i и j).
@@ -150,7 +176,7 @@ public sealed class ArraySortTraceBuilder
     /// <summary>Финиш: всё отсортировано.</summary>
     public void Done(string summary)
     {
-        AddStep(ArrayStepKind.Done, $"🎉 {summary}", "✔ Готово", "done",
+        AddStep(ArrayStepKind.Done, summary, "✔ Готово", "done",
             memory: [], note: "Память свободна — сортировка закончена.");
     }
 
@@ -188,6 +214,8 @@ public sealed class ArraySortTraceBuilder
             RangeIds = rangeIds,
             Placed = _placedDirty ? [.. _placed] : null,
             BufferIds = buffer,
+            SeriesA = _seriesDirty ? _seriesA : null,
+            SeriesB = _seriesDirty ? _seriesB : null,
             MemoryIds = memory,
             MemoryNote = note,
             Comparisons = _comparisons,
@@ -195,6 +223,7 @@ public sealed class ArraySortTraceBuilder
             Passes = Passes,
         });
         if (_placedDirty) _placedDirty = false;
+        if (_seriesDirty) _seriesDirty = false;
     }
 
     private int[] SnapshotArray()

@@ -18,11 +18,11 @@ public sealed class MergeSort : IArraySortAlgorithm
     public string Group => ArraySortGroups.Advanced;
     public string Badge => "O(n·log n)";
     public string PassesLabel => "проходов";
-    public int MemorySlots => 3;
+    public int MemorySlots => 2;
     public string ShortInfo =>
         "Сливаем соседние отсортированные серии: длина 1 → 2 → 4 → 8… Сравниваем «головы» двух серий " +
         "и меньшее число записываем в буфер, в конце прохода буфер переписываем в массив. " +
-        "В памяти: две «головы» серий и номер ячейки буфера.";
+        "В памяти: две «головы» серий.";
 
     public void Sort(ArrayEntry[] a, bool descending, ArraySortTraceBuilder b)
     {
@@ -90,6 +90,10 @@ public sealed class MergeSort : IArraySortAlgorithm
     private static void Merge(ArrayEntry[] a, int lo, int mid, int hi, ArrayEntry[] buf,
         bool desc, ArraySortTraceBuilder b)
     {
+        // Размечаем серии для визуализации: чипы каждой серии обводятся своей группой с подписью.
+        b.SetSeries(mid >= hi ? RangeIds(a, lo, hi) : RangeIds(a, lo, mid),
+            mid >= hi ? [] : RangeIds(a, mid + 1, hi));
+
         if (b.Active)
             b.Note(
                 mid >= hi
@@ -112,6 +116,7 @@ public sealed class MergeSort : IArraySortAlgorithm
                     b.Active ? $"↔ Перестановка №{b.Moves + 1}: «{a[i].Value}» → буфер, ячейка {i}" : null,
                     "В памяти переписываемое число.");
             }
+            b.ClearSeries();
             return;
         }
 
@@ -162,6 +167,7 @@ public sealed class MergeSort : IArraySortAlgorithm
                 b.Active ? $"↔ Перестановка №{b.Moves + 1}: «{a[j].Value}» → буфер, ячейка {k}" : null,
                 "В памяти переписываемое число.");
         }
+        b.ClearSeries(); // пара слилась — группы серий с экрана убираются до следующей пары
     }
 
     // ---------------- служебные ----------------

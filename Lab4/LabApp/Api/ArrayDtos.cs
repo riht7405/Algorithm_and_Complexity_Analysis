@@ -38,6 +38,8 @@ public sealed record ArrayStepDto(
     int[]? RangeIds,
     int[]? Placed,
     int[]? BufferIds,
+    int[]? SeriesA,
+    int[]? SeriesB,
     int[] MemoryIds,
     string MemoryNote,
     long Comparisons,
@@ -84,6 +86,7 @@ public static class ArrayDtoMapper
                 s.Index, s.Kind.ToString(), s.Phase, s.Pass, s.PassTitle,
                 s.Desc, s.LogLine, s.LogKind,
                 s.ArrayIds, s.Highlights, s.MarkId, s.RangeIds, s.Placed, s.BufferIds,
+                s.SeriesA, s.SeriesB,
                 s.MemoryIds, s.MemoryNote,
                 s.Comparisons, s.Moves, s.Passes))
             .ToList();

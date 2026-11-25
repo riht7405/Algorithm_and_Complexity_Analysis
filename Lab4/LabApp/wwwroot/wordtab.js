@@ -772,9 +772,9 @@
       $("wBenchStatus").textContent = "Шаг больше максимального объёма — нечего мерить.";
       return;
     }
-    if (lengths.length > 100) {
+    if (lengths.length > 200) {
       $("wBenchStatus").textContent =
-        `Слишком много точек (${lengths.length}). Увеличь шаг или уменьши максимальный объём.`;
+        `Слишком много точек (${lengths.length}). Максимум — 200: увеличь шаг или уменьши максимальный объём.`;
       return;
     }
     state.benchRunning = true;

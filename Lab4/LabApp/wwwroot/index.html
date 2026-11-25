@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Лабораторная работа №4 — Алгоритмы сортировки</title>
   <link rel="icon" type="image/png" href="tiger.png">
-  <link rel="stylesheet" href="styles.css?v=20261125a">
+  <link rel="stylesheet" href="styles.css?v=20261125b">
 </head>
 <body>
 <header class="topbar">
@@ -47,8 +47,9 @@
               title="Сколько чисел сгенерировать (1–100)">
             <button id="aRandomBtn">Сгенерировать</button>
           </div>
-          <span class="fieldHint">от 1 до 100 чисел; каждый раз — новый случайный массив,
-            состояние у случайных массивов не сохраняется</span>
+          <span class="fieldHint">от 1 до 100 чисел; каждый раз — новый случайный массив
+            (новая сессия с нуля); у каждого сочетания «массив + алгоритм + порядок» —
+            своя сессия со своим прогрессом</span>
         </div>
 
         <div class="field">
@@ -94,10 +95,10 @@
 
         <div id="aLegend" class="wLegend" hidden>
           <span class="chip wchip wMem">в памяти</span>
-          <span class="chip wchip wPivot">особое число (минимум)</span>
+          <span class="chip wchip wPivot" id="aLegendMark" hidden>особое число (минимум)</span>
           <span class="chip wchip wPlaced">на своём месте</span>
           <span class="chip wchip wRange">текущий кусок</span>
-          <span class="chip wchip aBuf">в буфере слияния</span>
+          <span class="chip wchip aBuf" id="aLegendBuf" hidden>в буфере слияния</span>
         </div>
 
         <div id="aMemoryBox" class="memoryBox" hidden></div>
@@ -532,7 +533,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="app.js?v=20261125a"></script>
-<script src="sorttab.js?v=20261125a"></script>
-<script src="wordtab.js?v=20261124f"></script>
+<script src="sorttab.js?v=20261125b"></script>
+<script src="wordtab.js?v=20261125b"></script>
 </body>
 </html>
